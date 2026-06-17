@@ -51,7 +51,7 @@ namespace Replanetizer.Frames
                 }
                 ImGui.EndChild();
 
-                if (ImGui.BeginPopupContextItem($"context-menu for {i}"))
+                if (ImGui.BeginPopupContextItem($"context-menu for {prefix}{i}"))
                 {
                     if (ImGui.Button("Export"))
                     {
@@ -101,6 +101,10 @@ namespace Replanetizer.Frames
             if (ImGui.CollapsingHeader("Level textures"))
             {
                 RenderTextureList(level.textures, itemSizeX, levelFrame.textureIds, "levelTextures");
+            }
+            if (ImGui.CollapsingHeader("Spaceship textures"))
+            {
+                RenderTextureList(level.spaceshipTextures, itemSizeX, levelFrame.textureIds, "spaceshipTextures");
             }
             if (ImGui.CollapsingHeader("Gadget textures"))
             {

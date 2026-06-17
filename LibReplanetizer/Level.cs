@@ -34,9 +34,11 @@ namespace LibReplanetizer
         public List<Model> shrubModels;
         public List<Model> gadgetModels;
         public List<Model> armorModels;
+        public List<MobyModel> spaceshipModels;
         public Model collisionEngine;
         public List<Collision> collisionChunks;
         public List<Texture> textures;
+        public List<Texture> spaceshipTextures;
         public List<List<Texture>> armorTextures;
         public List<Texture> gadgetTextures;
         public SkyboxModel skybox;
@@ -166,6 +168,18 @@ namespace LibReplanetizer
                 LOGGER.Debug("Parsing textures...");
                 textures = engineParser.GetTextures();
                 LOGGER.Debug("Added {0} textures", textures.Count);
+
+                var spaceshipData = SpaceshipParser.GetAllSpaceshipData(game, enginePath, textures.Count);
+                spaceshipModels = spaceshipData.models;
+                spaceshipTextures = spaceshipData.textures;
+                LOGGER.Debug("Added {0} spaceship models", spaceshipModels.Count);
+
+                foreach (MobyModel model in spaceshipModels)
+                {
+                    mobyModels.RemoveAll(x => x.id == model.id);
+                }
+
+                mobyModels.AddRange(spaceshipModels);
 
                 LOGGER.Debug("Parsing ties...");
                 ties = engineParser.GetTies(tieModels);
@@ -403,6 +417,8 @@ namespace LibReplanetizer
             {
                 vramParser.GetTextures(textures);
             }
+
+            textures.AddRange(spaceshipTextures);
 
             LOGGER.Info("Level parsing done");
             valid = true;
