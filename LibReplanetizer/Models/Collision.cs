@@ -1,4 +1,4 @@
-﻿// Copyright (C) 2018-2021, The Replanetizer Contributors.
+﻿// Copyright (C) 2018-2026, The Replanetizer Contributors.
 // Replanetizer is free software: you can redistribute it
 // and/or modify it under the terms of the GNU General Public
 // License as published by the Free Software Foundation,
@@ -8,6 +8,7 @@
 using LibReplanetizer.LevelObjects;
 using System.Collections.Generic;
 using System.IO;
+using System.Numerics;
 using System.Runtime.InteropServices;
 using static LibReplanetizer.DataFunctions;
 
@@ -31,181 +32,416 @@ namespace LibReplanetizer.Models
 
     public class Collision : Model, IRenderable
     {
+        const int HEADSIZE = 0x08;
+
+        // Model
+
         public uint[] indBuff = { };
         public uint[] colorBuff = { };
+
+        // Standard Collision
+
+        private ushort zShift = 0;
+        private ushort[] yShift = [];
+        private List<ushort[]> xShift = new List<ushort[]>();
+        private ushort zCount = 0;
+        private ushort[] yCount = [];
+        private List<ushort[]> xCount = new List<ushort[]>();
+
+        private class CollisionCell
+        {
+            private ushort faceCount;
+            private byte vertexCount;
+            private byte quadCount;
+            public ushort xCell;
+            public ushort yCell;
+            public ushort zCell;
+
+            private struct CollisionCellEntry
+            {
+                public byte vertexIndex0;
+                public byte vertexIndex1;
+                public byte vertexIndex2;
+                public byte vertexIndex3;
+                public byte collisionType;
+            }
+
+            CollisionCellEntry[] entries = [];
+            Vector3[] vertices = [];
+
+            public CollisionCell(FileStream fs, int baseOffset, ushort x, ushort y, ushort z)
+            {
+                xCell = x;
+                yCell = y;
+                zCell = z;
+
+                byte[] headBlock = ReadBlock(fs, baseOffset, 0x04);
+
+                faceCount = ReadUshort(headBlock, 0x00);
+                vertexCount = headBlock[0x02];
+                quadCount = headBlock[0x03];
+
+                entries = new CollisionCellEntry[faceCount];
+                vertices = new Vector3[faceCount * vertexCount];
+
+                byte[] dataBlock = ReadBlock(fs, baseOffset + 0x04, faceCount * 0x04 + vertexCount * 0x0C + quadCount);
+                for (int f = 0; f < faceCount; f++)
+                {
+                    CollisionCellEntry entry = new CollisionCellEntry();
+
+                    // Collision Type
+                    int fOffset = (vertexCount * 0x0C) + (f * 0x04);
+
+                    entry.vertexIndex0 = dataBlock[fOffset];
+                    entry.vertexIndex1 = dataBlock[fOffset + 1];
+                    entry.vertexIndex2 = dataBlock[fOffset + 2];
+                    entry.collisionType = dataBlock[fOffset + 3];
+                    entry.vertexIndex3 = (f < quadCount) ? dataBlock[vertexCount * 0x0C + faceCount * 0x04 + f] : (byte) 0xFF;
+
+                    // Vertices
+                    for (int v = 0; v < vertexCount; v++)
+                    {
+                        float xPos = ReadFloat(dataBlock, v * 0x0C + 0x00);
+                        float yPos = ReadFloat(dataBlock, v * 0x0C + 0x04);
+                        float zPos = ReadFloat(dataBlock, v * 0x0C + 0x08);
+
+                        vertices[f * vertexCount + v] = new Vector3(xPos, yPos, zPos);
+                    }
+
+                    entries[f] = entry;
+                }
+            }
+
+            public void GetModelData(ushort xShift, ushort yShift, ushort zShift, List<float> vertexList, List<uint> indexList, ref uint totalVertexCount)
+            {
+                FloatColor fc = new FloatColor { r = 255, g = 0, b = 255, a = 255 };
+
+                byte[] collisionType = new byte[vertexCount];
+                for (int f = 0; f < faceCount; f++)
+                {
+                    CollisionCellEntry entry = entries[f];
+
+                    collisionType[entry.vertexIndex0] = entry.collisionType;
+                    collisionType[entry.vertexIndex1] = entry.collisionType;
+                    collisionType[entry.vertexIndex2] = entry.collisionType;
+
+                    uint f1 = totalVertexCount + entry.vertexIndex0;
+                    uint f2 = totalVertexCount + entry.vertexIndex1;
+                    uint f3 = totalVertexCount + entry.vertexIndex2;
+                    indexList.Add(f2);
+                    indexList.Add(f1);
+                    indexList.Add(f3);
+
+                    if (f < quadCount)
+                    {
+                        uint f4 = totalVertexCount + entry.vertexIndex3;
+                        indexList.Add(f3);
+                        indexList.Add(f1);
+                        indexList.Add(f4);
+                        collisionType[entry.vertexIndex3] = entry.collisionType;
+                    }
+
+                    // Vertices
+                    for (int v = 0; v < vertexCount; v++)
+                    {
+                        float xPos = vertices[f * vertexCount + v].X / 1024.0f;
+                        float yPos = vertices[f * vertexCount + v].Y / 1024.0f;
+                        float zPos = vertices[f * vertexCount + v].Z / 1024.0f;
+
+                        xPos += 4 * (xShift + xCell + 0.5f);
+                        yPos += 4 * (yShift + yCell + 0.5f);
+                        zPos += 4 * (zShift + zCell + 0.5f);
+
+                        vertexList.Add(xPos);
+                        vertexList.Add(yPos);
+                        vertexList.Add(zPos);
+
+                        // Colorize different types of collision without knowing what they are
+                        fc.r = (byte) ((collisionType[v] & 0x03) << 6);
+                        fc.g = (byte) ((collisionType[v] & 0x0C) << 4);
+                        fc.b = (byte) (collisionType[v] & 0xF0);
+
+                        vertexList.Add(fc.value);
+                        totalVertexCount++;
+                    }
+                }
+            }
+
+            public byte[] Serialize()
+            {
+                byte[] bytes = new byte[0x04 + faceCount * 0x04 + vertexCount * 0x0C + quadCount];
+
+                WriteUshort(bytes, 0x00, faceCount);
+                bytes[0x02] = vertexCount;
+                bytes[0x03] = quadCount;
+
+                for (int f = 0; f < faceCount; f++)
+                {
+                    CollisionCellEntry entry = entries[f];
+
+                    // Collision Type
+                    int fOffset = (vertexCount * 0x0C) + (f * 0x04);
+
+                    bytes[0x04 + fOffset + 0x00] = entry.vertexIndex0;
+                    bytes[0x04 + fOffset + 0x01] = entry.vertexIndex1;
+                    bytes[0x04 + fOffset + 0x02] = entry.vertexIndex2;
+                    bytes[0x04 + fOffset + 0x03] = entry.collisionType;
+
+                    if (f < quadCount)
+                    {
+                        bytes[0x04 + vertexCount * 0x0C + faceCount * 0x04 + f] = entry.vertexIndex3;
+                    }
+
+                    // Vertices
+                    for (int v = 0; v < vertexCount; v++)
+                    {
+                        WriteFloat(bytes, 0x04 + v * 0x0C + 0x00, vertices[f * vertexCount + v].X);
+                        WriteFloat(bytes, 0x04 + v * 0x0C + 0x04, vertices[f * vertexCount + v].Y);
+                        WriteFloat(bytes, 0x04 + v * 0x0C + 0x08, vertices[f * vertexCount + v].Z);
+                    }
+
+                    entries[f] = entry;
+                }
+
+                return bytes;
+            }
+        }
+
+        private List<CollisionCell> cells = new List<CollisionCell>();
+
+        // Hero Collision
+
+        private struct HeroCollisionCell
+        {
+            private ushort triCount;
+            private ushort vertCount;
+            private ushort[] vertices = [];
+            private byte[] indices = [];
+
+            public HeroCollisionCell(FileStream fs, int baseOffset, int num, byte[] headerBlock)
+            {
+                int entryOffset = num * 0x10;
+
+                triCount = ReadUshort(headerBlock, entryOffset + 0x08);
+                vertCount = ReadUshort(headerBlock, entryOffset + 0x0A);
+                uint dataOffset = ReadUint(headerBlock, entryOffset + 0x0C);
+
+                byte[] dataBlock = ReadBlock(fs, baseOffset + dataOffset, triCount * 0x04 + vertCount * 0x08);
+
+                vertices = new ushort[vertCount * 3];
+                indices = new byte[triCount * 3];
+
+                for (int v = 0; v < vertCount; v++)
+                {
+                    int vOff = v * 0x08;
+                    vertices[v * 3 + 0] = ReadUshort(dataBlock, vOff + 0x00);
+                    vertices[v * 3 + 1] = ReadUshort(dataBlock, vOff + 0x02);
+                    vertices[v * 3 + 2] = ReadUshort(dataBlock, vOff + 0x04);
+                }
+
+                for (int t = 0; t < triCount; t++)
+                {
+                    int tOff = vertCount * 0x08 + t * 0x04;
+                    indices[t * 3 + 0] = dataBlock[tOff + 0x00];
+                    indices[t * 3 + 1] = dataBlock[tOff + 0x01];
+                    indices[t * 3 + 2] = dataBlock[tOff + 0x02];
+                }
+            }
+
+            public void GetModelData(List<float> vertexList, List<uint> indexList, ref uint totalVertexCount)
+            {
+                // Wrench has hero collision as blue, so I figured I'll just... use that color as well...
+                FloatColor fc = new FloatColor { r = 0, g = 0, b = 255, a = 255 };
+
+                for (int v = 0; v < vertCount; v++)
+                {
+                    vertexList.Add(vertices[v * 3 + 0] / 64.0f);
+                    vertexList.Add(vertices[v * 3 + 1] / 64.0f);
+                    vertexList.Add(vertices[v * 3 + 2] / 64.0f);
+                    vertexList.Add(fc.value);
+                }
+
+                for (int t = 0; t < triCount; t++)
+                {
+                    indexList.Add(totalVertexCount + indices[t * 3 + 1]);
+                    indexList.Add(totalVertexCount + indices[t * 3 + 0]);
+                    indexList.Add(totalVertexCount + indices[t * 3 + 2]);
+                }
+
+                totalVertexCount += vertCount;
+            }
+
+            public byte[] Serialize(int num, byte[] headerBytes, uint dataOffset)
+            {
+                int entryOffset = num * 0x10;
+
+                WriteUshort(headerBytes, entryOffset + 0x08, triCount);
+                WriteUshort(headerBytes, entryOffset + 0x0A, vertCount);
+                WriteUint(headerBytes, entryOffset + 0x0C, dataOffset);
+
+                byte[] bytes = new byte[triCount * 0x04 + vertCount * 0x08];
+
+                for (int v = 0; v < vertCount; v++)
+                {
+                    int vOff = v * 0x08;
+                    WriteUshort(bytes, vOff + 0x00, vertices[v * 3 + 0]);
+                    WriteUshort(bytes, vOff + 0x02, vertices[v * 3 + 1]);
+                    WriteUshort(bytes, vOff + 0x04, vertices[v * 3 + 2]);
+                }
+
+                for (int t = 0; t < triCount; t++)
+                {
+                    int tOff = vertCount * 0x08 + t * 0x04;
+                    bytes[tOff + 0x00] = indices[t * 3 + 0];
+                    bytes[tOff + 0x01] = indices[t * 3 + 1];
+                    bytes[tOff + 0x02] = indices[t * 3 + 2];
+                }
+
+                return bytes;
+            }
+        }
+
+        private List<HeroCollisionCell> heroCells = new List<HeroCollisionCell>();
 
         public Collision(FileStream fs, int collisionPointer)
         {
             // RaC 1 title screen has no collision
             if (collisionPointer == 0) return;
 
-            byte[] headBlock = ReadBlock(fs, collisionPointer, 0x08);
+            byte[] headBlock = ReadBlock(fs, collisionPointer, HEADSIZE);
             int standardCollisionStart = ReadInt(headBlock, 0x00);
             int heroCollisionStart = ReadInt(headBlock, 0x04);
+
+            if (standardCollisionStart > 0)
+                ParseStandardCollision(fs, collisionPointer + standardCollisionStart);
+
+            if (heroCollisionStart > 0)
+                ParseHeroCollision(fs, collisionPointer + heroCollisionStart);
 
             var vertexList = new List<float>();
             var indexList = new List<uint>();
             uint totalVertexCount = 0;
 
-            if (standardCollisionStart > 0)
-                ParseStandardCollision(fs, collisionPointer + standardCollisionStart, vertexList, indexList, ref totalVertexCount);
-
-            if (heroCollisionStart > 0)
-                ParseHeroCollision(fs, collisionPointer + heroCollisionStart, vertexList, indexList, ref totalVertexCount);
+            GenerateModelData(vertexList, indexList, ref totalVertexCount);
 
             vertexBuffer = vertexList.ToArray();
             indBuff = indexList.ToArray();
         }
 
-        private void ParseStandardCollision(FileStream fs, int baseOffset, List<float> vertexList, List<uint> indexList, ref uint totalVertexCount)
+        private void ParseStandardCollision(FileStream fs, int baseOffset)
         {
             byte[] headZBlock = ReadBlock(fs, baseOffset, 0x04);
 
-            ushort zShift = ReadUshort(headZBlock, 0);
-            ushort zCount = ReadUshort(headZBlock, 2);
+            zShift = ReadUshort(headZBlock, 0);
+            zCount = ReadUshort(headZBlock, 2);
+            yShift = new ushort[zCount];
+            yCount = new ushort[zCount];
+            xShift = new List<ushort[]>(zCount);
+            xCount = new List<ushort[]>(zCount);
 
             byte[] zBlock = ReadBlock(fs, baseOffset + 0x04, zCount * 0x04);
 
-            FloatColor fc = new FloatColor { r = 255, g = 0, b = 255, a = 255 };
-
-            for (int z = 0; z < zCount; z++)
+            for (ushort z = 0; z < zCount; z++)
             {
                 int yOffset = ReadInt(zBlock, z * 0x04);
-                if (yOffset == 0) continue;
+                if (yOffset == 0)
+                {
+                    xShift.Add([]);
+                    xCount.Add([]);
+                    continue;
+                }
 
                 byte[] headYBlock = ReadBlock(fs, baseOffset + yOffset, 0x04);
 
-                ushort yShift = ReadUshort(headYBlock, 0x00);
-                ushort yCount = ReadUshort(headYBlock, 0x02);
+                yShift[z] = ReadUshort(headYBlock, 0x00);
+                yCount[z] = ReadUshort(headYBlock, 0x02);
 
-                byte[] yBlock = ReadBlock(fs, baseOffset + yOffset + 0x04, yCount * 0x04);
+                byte[] yBlock = ReadBlock(fs, baseOffset + yOffset + 0x04, yCount[z] * 0x04);
 
-                for (int y = 0; y < yCount; y++)
+                xShift.Add(new ushort[yCount[z]]);
+                xCount.Add(new ushort[yCount[z]]);
+
+                for (ushort y = 0; y < yCount[z]; y++)
                 {
                     int xOffset = ReadInt(yBlock, y * 0x04);
                     if (xOffset == 0) continue;
 
                     byte[] headXBlock = ReadBlock(fs, baseOffset + xOffset, 0x04);
 
-                    ushort xShift = ReadUshort(headXBlock, 0x00);
-                    ushort xCount = ReadUshort(headXBlock, 0x02);
+                    xShift[z][y] = ReadUshort(headXBlock, 0x00);
+                    xCount[z][y] = ReadUshort(headXBlock, 0x02);
 
-                    byte[] xBlock = ReadBlock(fs, baseOffset + xOffset + 0x04, xCount * 0x04);
+                    byte[] xBlock = ReadBlock(fs, baseOffset + xOffset + 0x04, xCount[z][y] * 0x04);
 
-                    for (int x = 0; x < xCount; x++)
+                    for (ushort x = 0; x < xCount[z][y]; x++)
                     {
                         int vOffset = ReadInt(xBlock, x * 0x04);
                         if (vOffset == 0) continue;
 
-                        byte[] headVBlock = ReadBlock(fs, baseOffset + vOffset, 0x04);
-
-                        ushort faceCount = ReadUshort(headVBlock, 0x00);
-                        byte vertexCount = headVBlock[0x02];
-                        byte rCount = headVBlock[0x03];
-
-                        byte[] dataBlock = ReadBlock(fs, baseOffset + vOffset + 0x04, faceCount * 0x04 + vertexCount * 0x0C + rCount);
-
-                        byte[] collisionType = new byte[vertexCount];
-                        for (int f = 0; f < faceCount; f++)
-                        {
-                            // Collision Type
-                            int fOffset = (vertexCount * 0x0C) + (f * 0x04);
-
-                            byte b0 = dataBlock[fOffset];
-                            byte b1 = dataBlock[fOffset + 1];
-                            byte b2 = dataBlock[fOffset + 2];
-                            byte b3 = dataBlock[fOffset + 3];
-
-                            collisionType[b0] = b3;
-                            collisionType[b1] = b3;
-                            collisionType[b2] = b3;
-
-                            uint f1 = totalVertexCount + b0;
-                            uint f2 = totalVertexCount + b1;
-                            uint f3 = totalVertexCount + b2;
-                            indexList.Add(f2);
-                            indexList.Add(f1);
-                            indexList.Add(f3);
-
-                            if (f < rCount)
-                            {
-                                byte r = dataBlock[(vertexCount * 0x0C) + (faceCount * 0x04) + f];
-                                uint f4 = totalVertexCount + r;
-                                indexList.Add(f3);
-                                indexList.Add(f1);
-                                indexList.Add(f4);
-                                collisionType[r] = b3;
-                            }
-
-                            // Vertices
-                            for (int v = 0; v < vertexCount; v++)
-                            {
-                                float xPos = ReadFloat(dataBlock, v * 0x0c + 0x00) / 1024.0f;
-                                float yPos = ReadFloat(dataBlock, v * 0x0c + 0x04) / 1024.0f;
-                                float zPos = ReadFloat(dataBlock, v * 0x0c + 0x08) / 1024.0f;
-
-                                xPos += 4 * (xShift + x + 0.5f);
-                                yPos += 4 * (yShift + y + 0.5f);
-                                zPos += 4 * (zShift + z + 0.5f);
-
-                                vertexList.Add(xPos);
-                                vertexList.Add(yPos);
-                                vertexList.Add(zPos);
-
-                                // Colorize different types of collision without knowing what they are
-                                fc.r = (byte) ((collisionType[v] & 0x03) << 6);
-                                fc.g = (byte) ((collisionType[v] & 0x0C) << 4);
-                                fc.b = (byte) (collisionType[v] & 0xF0);
-
-                                vertexList.Add(fc.value);
-                                totalVertexCount++;
-                            }
-                        }
+                        cells.Add(new CollisionCell(fs, baseOffset + vOffset, x, y, z));
                     }
                 }
             }
         }
 
-        private void ParseHeroCollision(FileStream fs, int baseOffset, List<float> vertexList, List<uint> indexList, ref uint totalVertexCount)
+        private void ParseHeroCollision(FileStream fs, int baseOffset)
         {
             byte[] headBlock = ReadBlock(fs, baseOffset, 0x10);
 
-            int groupCount = ReadInt(headBlock, 0x00);
+            int heroCellCount = ReadInt(headBlock, 0x00);
 
-            byte[] groupHeaderBlock = ReadBlock(fs, baseOffset + 0x10, groupCount * 0x10);
+            heroCells = new List<HeroCollisionCell>(heroCellCount);
 
-            for (int i = 0; i < groupCount; i++)
+            byte[] cellHeaderBlock = ReadBlock(fs, baseOffset + 0x10, heroCellCount * 0x10);
+
+            for (int i = 0; i < heroCellCount; i++)
+                heroCells.Add(new HeroCollisionCell(fs, baseOffset, i, cellHeaderBlock));
+        }
+
+        private void GenerateModelData(List<float> vertexList, List<uint> indexList, ref uint totalVertexCount)
+        {
+            for (int i = 0; i < cells.Count; i++)
             {
-                int entryOffset = i * 0x10;
-
-                ushort triCount = ReadUshort(groupHeaderBlock, entryOffset + 0x08);
-                ushort vertCount = ReadUshort(groupHeaderBlock, entryOffset + 0x0A);
-                int dataOffset = (int) ReadUint(groupHeaderBlock, entryOffset + 0x0C);
-
-                // Wrench has hero collision as blue, so I figured I'll just... use that color as well...
-                FloatColor fc = new FloatColor { r = 0, g = 0, b = 255, a = 255 };
-
-                byte[] dataBlock = ReadBlock(fs, baseOffset + dataOffset, triCount * 0x04 + vertCount * 0x08);
-
-                for (int v = 0; v < vertCount; v++)
-                {
-                    int vOff = v * 0x08;
-                    vertexList.Add(ReadUshort(dataBlock, vOff + 0x00) / 64.0f);
-                    vertexList.Add(ReadUshort(dataBlock, vOff + 0x02) / 64.0f);
-                    vertexList.Add(ReadUshort(dataBlock, vOff + 0x04) / 64.0f);
-                    vertexList.Add(fc.value);
-                }
-
-                for (int t = 0; t < triCount; t++)
-                {
-                    int tOff = vertCount * 0x08 + t * 0x04;
-                    indexList.Add(totalVertexCount + dataBlock[tOff + 0x01]);
-                    indexList.Add(totalVertexCount + dataBlock[tOff + 0x00]);
-                    indexList.Add(totalVertexCount + dataBlock[tOff + 0x02]);
-                }
-
-                totalVertexCount += vertCount;
+                CollisionCell cell = cells[i];
+                cell.GetModelData(xShift[cell.zCell][cell.yCell], yShift[cell.zCell], zShift, vertexList, indexList, ref totalVertexCount);
             }
+
+            for (int i = 0; i < heroCells.Count; i++)
+            {
+                heroCells[i].GetModelData(vertexList, indexList, ref totalVertexCount);
+            }
+
+        }
+
+        public byte[] Serialize()
+        {
+            byte[] standardCollisionBlock = SerializeStandardCollision();
+            byte[] heroCollisionBlock = SerializeHeroCollision();
+
+            int standardCollisionStart = AlignAddressUp(HEADSIZE);
+            int heroCollisionStart = AlignAddressUp(standardCollisionStart + standardCollisionBlock.Length);
+
+            byte[] bytes = new byte[heroCollisionStart + heroCollisionBlock.Length];
+
+            WriteInt(bytes, 0x00, standardCollisionStart);
+            WriteInt(bytes, 0x04, heroCollisionStart);
+
+            standardCollisionBlock.CopyTo(bytes, standardCollisionStart);
+            heroCollisionBlock.CopyTo(bytes, heroCollisionStart);
+
+            return bytes;
+        }
+
+        private byte[] SerializeStandardCollision()
+        {
+            // TODO
+            return [];
+        }
+
+        private byte[] SerializeHeroCollision()
+        {
+            // TODO
+            return [];
         }
     }
 }
