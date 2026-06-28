@@ -66,84 +66,143 @@ namespace LibReplanetizer.SerializationDiffTool
                 }
             }
 
-            if (string.IsNullOrEmpty(inputFile) || !File.Exists(inputFile))
+            var inputPath = Path.GetFullPath(inputFile!);
+            var allResults = new List<FileDiffResult>();
+            string? rootInputPath = null;
+
+            if (Directory.Exists(inputPath))
             {
-                Console.Error.WriteLine("Error: --input is required and must point to an existing file.");
-                PrintUsage();
-                return 1;
+                // Multi-level mode: find all engine.ps3 files in the directory tree
+                Console.WriteLine($"Scanning directory for levels: {inputPath}");
+                var levelPaths = Directory.GetFiles(inputPath, "engine.ps3", SearchOption.AllDirectories)
+                    .OrderBy(p => p)
+                    .ToList();
+
+                if (levelPaths.Count == 0)
+                {
+                    Console.Error.WriteLine("Error: No engine.ps3 files found in the specified directory.");
+                    PrintUsage();
+                    return 1;
+                }
+
+                Console.WriteLine($"Found {levelPaths.Count} level(s).");
+                Console.WriteLine();
+
+                if (string.IsNullOrEmpty(outputDir))
+                {
+                    outputDir = Path.Combine(Path.GetTempPath(), $"Replanetizer_SerializationDiffTool_Output");
+                }
+                else
+                {
+                    outputDir = Path.GetFullPath(outputDir);
+                }
+                Directory.CreateDirectory(outputDir);
+
+                if (string.IsNullOrEmpty(diffDir))
+                {
+                    diffDir = inputPath;
+                }
+                else
+                {
+                    diffDir = Path.GetFullPath(diffDir);
+                }
+
+                rootInputPath = inputPath;
+
+                for (int i = 0; i < levelPaths.Count; i++)
+                {
+                    string levelPath = levelPaths[i];
+                    string levelDir = Path.GetDirectoryName(levelPath)!;
+                    string relativeLevelDir = Path.GetRelativePath(rootInputPath!, levelDir);
+                    string outputLevelDir = Path.Combine(outputDir, relativeLevelDir);
+                    Directory.CreateDirectory(outputLevelDir);
+
+                    Environment.SetEnvironmentVariable(DebugFileStream.LOG_DIR_ENV_VAR, outputLevelDir);
+
+                    Console.WriteLine($"[{i + 1}/{levelPaths.Count}] Processing: {relativeLevelDir}");
+                    Console.WriteLine($"  Source: {levelDir}");
+                    Console.WriteLine($"  Output: {outputLevelDir}");
+
+                    var levelResults = ProcessSingleLevel(levelPath, outputLevelDir, levelDir, verbose, hexBytes, rootInputPath);
+                    allResults.AddRange(levelResults);
+                    Console.WriteLine();
+                }
             }
-
-            // Determine directories
-            string enginePath = Path.GetFullPath(inputFile);
-            string sourceDir = Path.GetDirectoryName(enginePath)!;
-            diffDir ??= sourceDir;
-
-            if (string.IsNullOrEmpty(outputDir))
+            else if (File.Exists(inputPath))
             {
-                outputDir = Path.Combine(Path.GetTempPath(), $"Replanetizer_SerializationDiffTool_Output");
+                // Single-level mode (backward compatible)
+                string enginePath = inputPath;
+                string sourceDir = Path.GetDirectoryName(enginePath)!;
+                diffDir ??= sourceDir;
+                rootInputPath = sourceDir;
+
+                if (string.IsNullOrEmpty(outputDir))
+                {
+                    outputDir = Path.Combine(Path.GetTempPath(), $"Replanetizer_SerializationDiffTool_Output");
+                }
+                else
+                {
+                    outputDir = Path.GetFullPath(outputDir);
+                }
+                Directory.CreateDirectory(outputDir);
+
+                Console.WriteLine($"Input:  {enginePath}");
+                Console.WriteLine($"Output: {outputDir}");
+                Console.WriteLine($"Diff:   {diffDir}");
+                Console.WriteLine();
+
+                Environment.SetEnvironmentVariable(DebugFileStream.LOG_DIR_ENV_VAR, outputDir);
+
+                Console.WriteLine("Loading level...");
+                Level level;
+                try
+                {
+                    level = new Level(enginePath);
+                    if (!level.valid)
+                    {
+                        Console.Error.WriteLine("Error: Failed to load level (level.valid = false).");
+                        return 1;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Error: Failed to load level: {ex.Message}");
+                    return 1;
+                }
+
+                Console.WriteLine($"Loaded level for game: {level.game}");
+                Console.WriteLine($"  Moby models:  {level.mobyModels.Count}");
+                Console.WriteLine($"  Tie models:   {level.tieModels.Count}");
+                Console.WriteLine($"  Shrub models: {level.shrubModels.Count}");
+                Console.WriteLine($"  Textures:     {level.textures.Count}");
+                Console.WriteLine($"  Mobs:         {level.mobs.Count}");
+                Console.WriteLine($"  Terrain frags:{level.terrainEngine.fragments.Count}");
+                Console.WriteLine();
+
+                Console.WriteLine("Serializing level...");
+                try
+                {
+                    level.Save(outputDir);
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Error: Failed to serialize level: {ex.Message}");
+                    level.Dispose();
+                    return 1;
+                }
+                Console.WriteLine("Serialization complete.");
+                Console.WriteLine();
+
+                Console.WriteLine("Comparing files...");
+                allResults = DiffDirectories(sourceDir, outputDir, diffDir, verbose, hexBytes, rootInputPath);
+                level.Dispose();
             }
             else
             {
-                outputDir = Path.GetFullPath(outputDir);
-            }
-
-            Directory.CreateDirectory(outputDir);
-
-            Console.WriteLine($"Input:  {enginePath}");
-            Console.WriteLine($"Output: {outputDir}");
-            Console.WriteLine($"Diff:   {diffDir}");
-            Console.WriteLine();
-
-            // Set environment variable so DebugFileStream writes access logs to output dir
-            Environment.SetEnvironmentVariable(DebugFileStream.LOG_DIR_ENV_VAR, outputDir);
-
-            // Step 1: Load
-            Console.WriteLine("Loading level...");
-            Level level;
-            try
-            {
-                level = new Level(enginePath);
-                if (!level.valid)
-                {
-                    Console.Error.WriteLine("Error: Failed to load level (level.valid = false).");
-                    return 1;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine($"Error: Failed to load level: {ex.Message}");
+                Console.Error.WriteLine($"Error: Input path does not exist: {inputPath}");
+                PrintUsage();
                 return 1;
             }
-
-            Console.WriteLine($"Loaded level for game: {level.game}");
-            Console.WriteLine($"  Moby models:  {level.mobyModels.Count}");
-            Console.WriteLine($"  Tie models:   {level.tieModels.Count}");
-            Console.WriteLine($"  Shrub models: {level.shrubModels.Count}");
-            Console.WriteLine($"  Textures:     {level.textures.Count}");
-            Console.WriteLine($"  Mobs:         {level.mobs.Count}");
-            Console.WriteLine($"  Terrain frags:{level.terrainEngine.fragments.Count}");
-            Console.WriteLine();
-
-            // Step 2: Save
-            Console.WriteLine("Serializing level...");
-            try
-            {
-                level.Save(outputDir);
-            }
-            catch (Exception ex)
-            {
-                Console.Error.WriteLine($"Error: Failed to serialize level: {ex.Message}");
-                level.Dispose();
-                return 1;
-            }
-            Console.WriteLine("Serialization complete.");
-            Console.WriteLine();
-
-            // Step 3: Diff
-            Console.WriteLine("Comparing files...");
-            var results = DiffDirectories(sourceDir, outputDir, diffDir, verbose, hexBytes);
-
-            level.Dispose();
 
             // Generate HTML report
             if (string.IsNullOrEmpty(htmlOutput))
@@ -151,11 +210,12 @@ namespace LibReplanetizer.SerializationDiffTool
                 htmlOutput = Path.Combine(outputDir, "diff_report.html");
             }
             htmlOutput = Path.GetFullPath(htmlOutput);
-            GenerateHtmlReport(results, htmlOutput, enginePath, outputDir, diffDir, hexBytes);
+            string reportInputPath = rootInputPath ?? inputPath;
+            GenerateHtmlReport(allResults, htmlOutput, reportInputPath, outputDir, diffDir!, hexBytes);
             Console.WriteLine($"HTML report written to: {htmlOutput}");
 
             // Exit with non-zero if any diffs found
-            return results.Any(r => r.Status != FileStatus.Ok) ? 1 : 0;
+            return allResults.Any(r => r.Status != FileStatus.Ok) ? 1 : 0;
         }
 
         private static void PrintUsage()
@@ -165,12 +225,61 @@ namespace LibReplanetizer.SerializationDiffTool
             Console.WriteLine("Usage: LibReplanetizer.SerializationDiffTool [options]");
             Console.WriteLine();
             Console.WriteLine("Options:");
-            Console.WriteLine("  --input, -i <path>     Path to engine file (required)");
+            Console.WriteLine("  --input, -i <path>     Path to engine file or directory containing levels (required)");
             Console.WriteLine("  --output, -o <path>    Output directory for re-serialized files (default: temp)");
             Console.WriteLine("  --diff, -d <path>      Directory to diff against (default: input file's directory)");
             Console.WriteLine("  --hex-bytes, -n <N>    Number of differing bytes to show in hex dump (default: 32)");
             Console.WriteLine("  --verbose, -v          Enable verbose logging");
             Console.WriteLine("  --help, -h             Show this help message");
+        }
+
+        /// <summary>
+        /// Process a single level file: load, serialize, and diff.
+        /// </summary>
+        private static List<FileDiffResult> ProcessSingleLevel(string levelPath, string outputDir, string sourceDir, bool verbose, int hexBytes, string? rootPath = null)
+        {
+            Console.WriteLine("Loading level...");
+            Level level;
+            try
+            {
+                level = new Level(levelPath);
+                if (!level.valid)
+                {
+                    Console.Error.WriteLine("  Error: Failed to load level (level.valid = false).");
+                    return new List<FileDiffResult>();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"  Error: Failed to load level: {ex.Message}");
+                return new List<FileDiffResult>();
+            }
+
+            Console.WriteLine($"  Loaded level for game: {level.game}");
+            Console.WriteLine($"    Moby models:  {level.mobyModels.Count}");
+            Console.WriteLine($"    Tie models:   {level.tieModels.Count}");
+            Console.WriteLine($"    Shrub models: {level.shrubModels.Count}");
+            Console.WriteLine($"    Textures:     {level.textures.Count}");
+            Console.WriteLine($"    Mobs:         {level.mobs.Count}");
+            Console.WriteLine($"    Terrain frags:{level.terrainEngine.fragments.Count}");
+
+            Console.WriteLine("  Serializing level...");
+            try
+            {
+                level.Save(outputDir);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"  Error: Failed to serialize level: {ex.Message}");
+                level.Dispose();
+                return new List<FileDiffResult>();
+            }
+            Console.WriteLine("  Serialization complete.");
+
+            Console.WriteLine("  Comparing files...");
+            var results = DiffDirectories(sourceDir, outputDir, sourceDir, verbose, hexBytes, rootPath);
+            level.Dispose();
+            return results;
         }
 
         /// <summary>
@@ -326,12 +435,12 @@ namespace LibReplanetizer.SerializationDiffTool
             public string StackTrace { get; set; } = "";
         }
 
-        private static List<FileDiffResult> DiffDirectories(string sourceDir, string outputDir, string diffDir, bool verbose, int hexBytes)
+        private static List<FileDiffResult> DiffDirectories(string sourceDir, string outputDir, string diffDir, bool verbose, int hexBytes, string? rootPath = null)
         {
-            var results = new List<FileDiffResult>();
+            List<FileDiffResult> results = new List<FileDiffResult>();
 
             // Collect source files
-            var sourceFiles = new HashSet<string>();
+            HashSet<string> sourceFiles = new HashSet<string>();
             if (Directory.Exists(diffDir))
             {
                 foreach (var file in Directory.EnumerateFiles(diffDir, "*", SearchOption.AllDirectories))
@@ -341,7 +450,7 @@ namespace LibReplanetizer.SerializationDiffTool
             }
 
             // Collect output files
-            var outputFiles = new HashSet<string>();
+            HashSet<string> outputFiles = new HashSet<string>();
             if (Directory.Exists(outputDir))
             {
                 foreach (var file in Directory.EnumerateFiles(outputDir, "*", SearchOption.AllDirectories))
@@ -351,17 +460,17 @@ namespace LibReplanetizer.SerializationDiffTool
             }
 
             // Only compare files present in BOTH directories
-            var commonFiles = sourceFiles.Intersect(outputFiles).OrderBy(f => f).ToList();
+            List<string> commonFiles = sourceFiles.Intersect(outputFiles).ToList();
 
-            foreach (var relativePath in commonFiles)
+            foreach (string? relativePath in commonFiles)
             {
-                var result = new FileDiffResult { RelativePath = relativePath };
+                FileDiffResult result = new FileDiffResult { RelativePath = Path.Combine(diffDir, relativePath) };
 
                 string sourcePath = Path.Combine(diffDir, relativePath);
                 string outputPath = Path.Combine(outputDir, relativePath);
 
-                var sourceInfo = new FileInfo(sourcePath);
-                var outputInfo = new FileInfo(outputPath);
+                FileInfo sourceInfo = new FileInfo(sourcePath);
+                FileInfo outputInfo = new FileInfo(outputPath);
 
                 result.OriginalSize = sourceInfo.Length;
                 result.ReSerializedSize = outputInfo.Length;
@@ -501,7 +610,7 @@ namespace LibReplanetizer.SerializationDiffTool
         overflow: hidden;
     }
     .file-header {
-        background: #f8f9fa;
+        background: #ffcbcb;
         padding: 12px 15px;
         cursor: pointer;
         display: flex;
@@ -510,7 +619,14 @@ namespace LibReplanetizer.SerializationDiffTool
         border-bottom: 1px solid #eee;
     }
     .file-header:hover {
-        background: #e9ecef;
+        background: #dda3a3;
+    }
+    .file-header-success {
+        background: #cfffce;
+        cursor: default;
+    }
+    .file-header-success:hover {
+        background: #afe0ae;
     }
     .file-name {
         font-weight: 600;
@@ -530,7 +646,7 @@ namespace LibReplanetizer.SerializationDiffTool
         display: block;
     }
     .file-item.expanded .file-header {
-        background: #e3f2fd;
+        background: #ffecf2;
     }
     .hex-dump {
         background: #1e1e1e;
@@ -658,22 +774,28 @@ namespace LibReplanetizer.SerializationDiffTool
             sb.AppendLine($"        <div class=\"summary-card diff\"><div class=\"number\">{diffFiles.Count}</div><div class=\"label\">Differences</div></div>");
             sb.AppendLine("      </div>");
 
-            if (diffFiles.Any())
+            if (results.Any())
             {
                 sb.AppendLine("      <h2>Differences</h2>");
                 sb.AppendLine("      <ul class=\"file-list\">");
 
-                foreach (var diff in diffFiles)
+                foreach (var diff in results)
                 {
                     sb.AppendLine("        <li class=\"file-item\">");
-                    sb.AppendLine("          <div class=\"file-header\" onclick=\"this.parentElement.classList.toggle('expanded')\">");
+                    if (diff.Status == FileStatus.Ok)
+                        sb.AppendLine($"          <div class=\"file-header file-header-success\">");
+                    else
+                        sb.AppendLine($"          <div class=\"file-header\" onclick=\"this.parentElement.classList.toggle('expanded')\">");
                     sb.AppendLine($"            <div><span class=\"file-name\">{HtmlEncode(diff.RelativePath)}</span>");
-                    sb.AppendLine($"              <div class=\"file-meta\">");
-                    sb.AppendLine($"                Original: {diff.OriginalSize} bytes | ");
-                    sb.AppendLine($"                Re-serialized: {diff.ReSerializedSize} bytes | ");
-                    sb.AppendLine($"                Diff bytes: {diff.DiffByteCount}");
-                    sb.AppendLine($"              </div></div>");
-                    sb.AppendLine($"            <span class=\"expand-hint\">▼</span>");
+                    if (diff.Status != FileStatus.Ok)
+                    {
+                        sb.AppendLine($"              <div class=\"file-meta\">");
+                        sb.AppendLine($"                Original: {diff.OriginalSize} bytes | ");
+                        sb.AppendLine($"                Re-serialized: {diff.ReSerializedSize} bytes | ");
+                        sb.AppendLine($"                Diff bytes: {diff.DiffByteCount}");
+                        sb.AppendLine($"              </div></div>");
+                        sb.AppendLine($"            <span class=\"expand-hint\">▼</span>");
+                    }
                     sb.AppendLine("          </div>");
                     sb.AppendLine("          <div class=\"file-body\">");
 
@@ -775,10 +897,6 @@ namespace LibReplanetizer.SerializationDiffTool
                 }
 
                 sb.AppendLine("      </ul>");
-            }
-            else
-            {
-                sb.AppendLine("      <div class=\"no-diffs\">All files match perfectly!</div>");
             }
 
             sb.AppendLine("      <div class=\"timestamp\">Report generated by LibReplanetizer.SerializationDiffTool</div>");
