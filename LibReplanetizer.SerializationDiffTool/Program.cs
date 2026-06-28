@@ -937,25 +937,72 @@ namespace LibReplanetizer.SerializationDiffTool
 
             var seenTraces = new HashSet<string>();
             var traceRanges = new List<(string trace, long start, long end, AccessType type)>();
+            var sortedDiffOffsets = diff.DiffBytes
+                .Select(d => d.offset)
+                .Distinct()
+                .OrderBy(o => o)
+                .ToList();
 
-            foreach (var diffByte in diff.DiffBytes)
+            if (sortedDiffOffsets.Count == 0)
             {
-                long offset = diffByte.offset;
-                foreach (var kvp in diff.StackTraces)
-                {
-                    var overlapping = FindOverlappingEntries(kvp.Value, offset, 1);
-                    foreach (var entry in overlapping)
-                    {
-                        if (!string.IsNullOrWhiteSpace(entry.StackTrace) && !seenTraces.Contains(entry.StackTrace))
-                        {
-                            seenTraces.Add(entry.StackTrace);
-                            traceRanges.Add((entry.StackTrace, entry.Start, entry.End, entry.Type));
-                        }
-                    }
-                }
+                return traceRanges;
+            }
+
+            foreach (var kvp in diff.StackTraces)
+            {
+                AddTraceRangesForType(kvp.Value, sortedDiffOffsets, seenTraces, traceRanges);
             }
 
             return traceRanges;
+        }
+
+        private static void AddTraceRangesForType(
+            List<AccessLogEntry> entries,
+            List<long> sortedDiffOffsets,
+            HashSet<string> seenTraces,
+            List<(string trace, long start, long end, AccessType type)> traceRanges)
+        {
+            if (entries.Count == 0)
+            {
+                return;
+            }
+
+            var sortedEntries = entries
+                .OrderBy(e => e.Start)
+                .ToList();
+
+            var activeEntries = new List<AccessLogEntry>();
+            int entryIndex = 0;
+
+            foreach (long offset in sortedDiffOffsets)
+            {
+                // Activate all ranges that start at or before this differing offset.
+                while (entryIndex < sortedEntries.Count && sortedEntries[entryIndex].Start <= offset)
+                {
+                    activeEntries.Add(sortedEntries[entryIndex]);
+                    entryIndex++;
+                }
+
+                for (int i = activeEntries.Count - 1; i >= 0; i--)
+                {
+                    AccessLogEntry entry = activeEntries[i];
+
+                    // No overlap for point query [offset, offset + 1).
+                    if (entry.End <= offset)
+                    {
+                        activeEntries.RemoveAt(i);
+                        continue;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(entry.StackTrace) && seenTraces.Add(entry.StackTrace))
+                    {
+                        traceRanges.Add((entry.StackTrace, entry.Start, entry.End, entry.Type));
+                    }
+
+                    // This entry has overlapped a diff offset and can never contribute a new trace again.
+                    activeEntries.RemoveAt(i);
+                }
+            }
         }
 
         private static string HtmlEncode(string s)
