@@ -122,7 +122,9 @@ namespace LibReplanetizer.Parsers
 
             if (gameplayHeader.mobyPointer == 0) { return mobs; }
 
-            int mobyCount = ReadInt(ReadBlock(fileStream, gameplayHeader.mobyPointer, 4), 0);
+            byte[] headerBlock = ReadBlock(fileStream, gameplayHeader.mobyPointer, 0x10);
+
+            int mobyCount = ReadInt(headerBlock, 0x00);
 
             byte[] mobyBlock = ReadBlock(fileStream, gameplayHeader.mobyPointer + 0x10, game.mobyElemSize * mobyCount);
             for (int i = 0; i < mobyCount; i++)
@@ -138,7 +140,10 @@ namespace LibReplanetizer.Parsers
 
             if (gameplayHeader.cuboidPointer == 0) { return cuboids; }
 
-            int cuboidCount = ReadInt(ReadBlock(fileStream, gameplayHeader.cuboidPointer, 4), 0);
+            byte[] headerBlock = ReadBlock(fileStream, gameplayHeader.cuboidPointer, 0x10);
+
+            int cuboidCount = ReadInt(headerBlock, 0x00);
+
             byte[] spawnPointBlock = ReadBlock(fileStream, gameplayHeader.cuboidPointer + 0x10, Cuboid.ELEMENTSIZE * cuboidCount);
             for (int i = 0; i < cuboidCount; i++)
             {
@@ -182,7 +187,10 @@ namespace LibReplanetizer.Parsers
             List<SoundInstance> soundInstances = new List<SoundInstance>();
             if (gameplayHeader.soundPointer == 0) { return soundInstances; }
 
-            int count = ReadInt(ReadBlock(fileStream, gameplayHeader.soundPointer, 4), 0);
+            byte[] headerBytes = ReadBlock(fileStream, gameplayHeader.soundPointer, 0x10);
+
+            int count = ReadInt(headerBytes, 0x00);
+
             byte[] soundInstanceBlock = ReadBlock(fileStream, gameplayHeader.soundPointer + 0x10, SoundInstance.ELEMENTSIZE * count);
             for (int i = 0; i < count; i++)
             {
@@ -516,14 +524,15 @@ namespace LibReplanetizer.Parsers
 
             byte[] pVarSizes = ReadBlock(fileStream, gameplayHeader.pvarSizePointer, gameplayHeader.pvarPointer - gameplayHeader.pvarSizePointer);
 
+            int pvarCount = pVarSizes.Length / 0x08;
+
             // Like this because padding is a thing
             int pVarSizeBlockSize = ReadInt(pVarSizes, pVarSizes.Length - 0x08) + ReadInt(pVarSizes, pVarSizes.Length - 0x04);
             if (pVarSizeBlockSize == 0)
             {
                 pVarSizeBlockSize = ReadInt(pVarSizes, pVarSizes.Length - 0x10) + ReadInt(pVarSizes, pVarSizes.Length - 0xC);
+                pvarCount--;
             }
-
-            int pvarCount = pVarSizes.Length / 0x08;
 
             byte[] pVarBlock = ReadBlock(fileStream, gameplayHeader.pvarPointer, pVarSizeBlockSize);
             for (int i = 0; i < pvarCount; i++)

@@ -23,7 +23,7 @@ namespace LibReplanetizer.Serializers
         public void Save(Level level, string directory)
         {
             directory = Path.Join(directory, "gameplay_ntsc");
-            ReplanetizerFileStream fs = new ReplanetizerFileStream(directory, FileMode.Create);
+            ReplanetizerFileStream fs = new ReplanetizerFileStream(directory, FileMode.Create, FileAccess.Write);
 
             switch (level.game.num)
             {
@@ -81,7 +81,7 @@ namespace LibReplanetizer.Serializers
                 cuboidPointer = SeekWrite(fs, SerializeLevelObjects(level.cuboids, Cuboid.ELEMENTSIZE)),
                 spherePointer = SeekWrite(fs, SerializeLevelObjects(level.spheres, Sphere.ELEMENTSIZE)),
                 cylinderPointer = SeekWrite(fs, SerializeLevelObjects(level.cylinders, Cylinder.ELEMENTSIZE)),
-                pillPointer = SeekWrite(fs, new byte[0x10]),
+                pillPointer = SeekWrite(fs, SerializeLevelObjects(level.pills, Pill.ELEMENTSIZE)),
                 camCollisionPointer = SeekWrite(fs, level.unk17),
                 pointLightPointer = SeekWrite(fs, SerializeLevelObjects(level.pointLights, PointLight.GetElementSize(GameType.RaC1))),
                 pointLightGridPointer = SeekWrite(fs, level.unk14),
@@ -134,7 +134,7 @@ namespace LibReplanetizer.Serializers
                 cuboidPointer = SeekWrite(fs, SerializeLevelObjects(level.cuboids, Cuboid.ELEMENTSIZE)),
                 spherePointer = SeekWrite(fs, SerializeLevelObjects(level.spheres, Sphere.ELEMENTSIZE)),
                 cylinderPointer = SeekWrite(fs, SerializeLevelObjects(level.cylinders, Cylinder.ELEMENTSIZE)),
-                pillPointer = SeekWrite(fs, new byte[0x10]),
+                pillPointer = SeekWrite(fs, SerializeLevelObjects(level.pills, Pill.ELEMENTSIZE)),
                 camCollisionPointer = SeekWrite(fs, level.unk17),
                 pointLightPointer = SeekWrite4(fs, SerializeLevelObjects(level.pointLights, PointLight.GetElementSize(GameType.RaC2))),
                 grindPathsPointer = SeekWrite(fs, GetGrindPathsBytes(level.grindPaths)),
@@ -187,7 +187,7 @@ namespace LibReplanetizer.Serializers
                 cuboidPointer = SeekWrite4(fs, SerializeLevelObjects(level.cuboids, Cuboid.ELEMENTSIZE)),
                 spherePointer = SeekWrite4(fs, SerializeLevelObjects(level.spheres, Sphere.ELEMENTSIZE)),
                 cylinderPointer = SeekWrite4(fs, SerializeLevelObjects(level.cylinders, Cylinder.ELEMENTSIZE)),
-                pillPointer = SeekWrite4(fs, new byte[0x10]),
+                pillPointer = SeekWrite4(fs, SerializeLevelObjects(level.pills, Pill.ELEMENTSIZE)),
                 camCollisionPointer = SeekWrite4(fs, level.unk17),
                 pointLightPointer = SeekWrite4(fs, SerializeLevelObjects(level.pointLights, PointLight.GetElementSize(GameType.RaC3))),
                 grindPathsPointer = SeekWrite4(fs, GetGrindPathsBytes(level.grindPaths)),
@@ -239,7 +239,7 @@ namespace LibReplanetizer.Serializers
                 cuboidPointer = SeekWrite4(fs, SerializeLevelObjects(level.cuboids, Cuboid.ELEMENTSIZE)),
                 spherePointer = SeekWrite4(fs, SerializeLevelObjects(level.spheres, Sphere.ELEMENTSIZE)),
                 cylinderPointer = SeekWrite4(fs, SerializeLevelObjects(level.cylinders, Cylinder.ELEMENTSIZE)),
-                pillPointer = SeekWrite4(fs, new byte[0x10]),
+                pillPointer = SeekWrite4(fs, SerializeLevelObjects(level.pills, Pill.ELEMENTSIZE)),
                 camCollisionPointer = SeekWrite4(fs, level.unk17),
                 pointLightPointer = SeekWrite4(fs, SerializeLevelObjects(level.pointLights, PointLight.GetElementSize(GameType.DL))),
                 grindPathsPointer = SeekWrite4(fs, GetGrindPathsBytes(level.grindPaths)),
@@ -496,14 +496,14 @@ namespace LibReplanetizer.Serializers
 
         public byte[] GetPvarSizeBytes(List<byte[]> pVars)
         {
-            if (pVars == null) return new byte[0x10];
+            if (pVars == null) return [];
 
-            byte[] bytes = new byte[pVars.Count * 8];
+            byte[] bytes = new byte[pVars.Count * 0x08];
             uint offset = 0;
             for (int i = 0; i < pVars.Count; i++)
             {
-                WriteUint(bytes, (i * 8) + 0x00, offset);
-                WriteUint(bytes, (i * 8) + 0x04, (uint) pVars[i].Length);
+                WriteUint(bytes, (i * 0x08) + 0x00, offset);
+                WriteUint(bytes, (i * 0x08) + 0x04, (uint) pVars[i].Length);
                 offset += (uint) pVars[i].Length;
             }
             return bytes;
@@ -526,7 +526,7 @@ namespace LibReplanetizer.Serializers
 
         public byte[] GetOcclusionBytes(OcclusionData? occlusionData)
         {
-            if (occlusionData == null) return new byte[0x10];
+            if (occlusionData == null) return [];
 
             return occlusionData.ToByteArray();
         }

@@ -110,12 +110,12 @@ namespace LibReplanetizer.Serializers
 
             List<byte> outBytes = new List<byte>();
 
-            byte[] head = new byte[headerSize];
-            WriteInt(head, 0, fileOffset + headerSize);
-            WriteUshort(head, 0x4, terrain.levelNumber);
-            WriteUshort(head, 0x6, (ushort) tFrags.Count);
+            byte[] headerBytes = new byte[headerSize];
+            WriteInt(headerBytes, 0x00, fileOffset + headerSize);
+            WriteUshort(headerBytes, 0x04, terrain.levelNumber);
+            WriteUshort(headerBytes, 0x06, (ushort) tFrags.Count);
 
-            outBytes.AddRange(head);
+            outBytes.AddRange(headerBytes);
             outBytes.AddRange(tfragHeads);
             outBytes.AddRange(textureBytes);
 

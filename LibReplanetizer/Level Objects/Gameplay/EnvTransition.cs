@@ -24,9 +24,9 @@ namespace LibReplanetizer.LevelObjects
         [Category("Attributes"), DisplayName("Inverse Matrix")]
         public Matrix4 inverseMatrix { get; set; }
         [Category("Attributes"), DisplayName("Ratchet Ambient Color 1")]
-        public Rgb24 heroColor1 { get; set; }
+        public Rgba32 heroColor1 { get; set; }
         [Category("Attributes"), DisplayName("Ratchet Ambient Color 2")]
-        public Rgb24 heroColor2 { get; set; }
+        public Rgba32 heroColor2 { get; set; }
         [Category("Attributes"), DisplayName("Ratchet Light ID 1")]
         public int heroLight1 { get; set; }
         [Category("Attributes"), DisplayName("Ratchet Light ID 2")]
@@ -34,9 +34,9 @@ namespace LibReplanetizer.LevelObjects
         [Category("Attributes"), DisplayName("Flags")]
         public int flags { get; set; }
         [Category("Attributes"), DisplayName("Fog Color 1")]
-        public Rgb24 fogColor1 { get; set; }
+        public Rgba32 fogColor1 { get; set; }
         [Category("Attributes"), DisplayName("Fog Color 2")]
-        public Rgb24 fogColor2 { get; set; }
+        public Rgba32 fogColor2 { get; set; }
         [Category("Attributes"), DisplayName("Fog Near Distance 1")]
         public float fogNearDist1 { get; set; }
         [Category("Attributes"), DisplayName("Fog Far Distance 1")]
@@ -72,22 +72,26 @@ namespace LibReplanetizer.LevelObjects
 
             inverseMatrix = ReadMatrix4(mainBlock, offset + 0x00);
 
-            byte heroR1 = mainBlock[offset + 0x40];
-            byte heroG1 = mainBlock[offset + 0x41];
-            byte heroB1 = mainBlock[offset + 0x42];
-            byte heroR2 = mainBlock[offset + 0x44];
-            byte heroG2 = mainBlock[offset + 0x45];
-            byte heroB2 = mainBlock[offset + 0x46];
+            byte heroA1 = mainBlock[offset + 0x40];
+            byte heroB1 = mainBlock[offset + 0x41];
+            byte heroG1 = mainBlock[offset + 0x42];
+            byte heroR1 = mainBlock[offset + 0x43];
+            byte heroA2 = mainBlock[offset + 0x44];
+            byte heroB2 = mainBlock[offset + 0x45];
+            byte heroG2 = mainBlock[offset + 0x46];
+            byte heroR2 = mainBlock[offset + 0x47];
             heroLight1 = ReadInt(mainBlock, offset + 0x48);
             heroLight2 = ReadInt(mainBlock, offset + 0x4C);
 
             flags = ReadInt(mainBlock, offset + 0x50);
-            byte fogR1 = mainBlock[offset + 0x54];
-            byte fogG1 = mainBlock[offset + 0x55];
-            byte fogB1 = mainBlock[offset + 0x56];
-            byte fogR2 = mainBlock[offset + 0x58];
-            byte fogG2 = mainBlock[offset + 0x59];
-            byte fogB2 = mainBlock[offset + 0x5A];
+            byte fogA1 = mainBlock[offset + 0x54];
+            byte fogB1 = mainBlock[offset + 0x55];
+            byte fogG1 = mainBlock[offset + 0x56];
+            byte fogR1 = mainBlock[offset + 0x57];
+            byte fogA2 = mainBlock[offset + 0x58];
+            byte fogB2 = mainBlock[offset + 0x59];
+            byte fogG2 = mainBlock[offset + 0x5A];
+            byte fogR2 = mainBlock[offset + 0x5B];
             fogNearDist1 = ReadFloat(mainBlock, offset + 0x5C);
 
             fogNearIntensity1 = ReadFloat(mainBlock, offset + 0x60);
@@ -99,10 +103,10 @@ namespace LibReplanetizer.LevelObjects
             fogFarDist2 = ReadFloat(mainBlock, offset + 0x74);
             fogFarIntensity2 = ReadFloat(mainBlock, offset + 0x78);
 
-            heroColor1 = Color.FromRgb(heroR1, heroG1, heroB1).ToPixel<Rgb24>();
-            heroColor2 = Color.FromRgb(heroR2, heroG2, heroB2).ToPixel<Rgb24>();
-            fogColor1 = Color.FromRgb(fogR1, fogG1, fogB1).ToPixel<Rgb24>();
-            fogColor2 = Color.FromRgb(fogR2, fogG2, fogB2).ToPixel<Rgb24>();
+            heroColor1 = Color.FromRgba(heroR1, heroG1, heroB1, heroA1).ToPixel<Rgba32>();
+            heroColor2 = Color.FromRgba(heroR2, heroG2, heroB2, heroA2).ToPixel<Rgba32>();
+            fogColor1 = Color.FromRgba(fogR1, fogG1, fogB1, fogA1).ToPixel<Rgba32>();
+            fogColor2 = Color.FromRgba(fogR2, fogG2, fogB2, fogA2).ToPixel<Rgba32>();
 
             UpdateTransformMatrix();
         }
@@ -130,26 +134,26 @@ namespace LibReplanetizer.LevelObjects
 
             WriteMatrix4(block, 0x00, inverseMatrix);
 
-            block[0x40] = (byte) heroColor1.R;
-            block[0x41] = (byte) heroColor1.G;
-            block[0x42] = (byte) heroColor1.B;
-            block[0x43] = (byte) 0;
-            block[0x44] = (byte) heroColor2.R;
-            block[0x45] = (byte) heroColor2.G;
-            block[0x46] = (byte) heroColor2.B;
-            block[0x47] = (byte) 0;
+            block[0x40] = heroColor1.A;
+            block[0x41] = heroColor1.B;
+            block[0x42] = heroColor1.G;
+            block[0x43] = heroColor1.R;
+            block[0x44] = heroColor2.A;
+            block[0x45] = heroColor2.B;
+            block[0x46] = heroColor2.G;
+            block[0x47] = heroColor2.R;
             WriteInt(block, 0x48, heroLight1);
             WriteInt(block, 0x4C, heroLight2);
 
             WriteInt(block, 0x50, flags);
-            block[0x54] = (byte) fogColor1.R;
-            block[0x55] = (byte) fogColor1.G;
-            block[0x56] = (byte) fogColor1.B;
-            block[0x57] = (byte) 0;
-            block[0x58] = (byte) fogColor2.R;
-            block[0x59] = (byte) fogColor2.G;
-            block[0x5A] = (byte) fogColor2.B;
-            block[0x5B] = (byte) 0;
+            block[0x54] = fogColor1.A;
+            block[0x55] = fogColor1.B;
+            block[0x56] = fogColor1.G;
+            block[0x57] = fogColor1.R;
+            block[0x58] = fogColor2.A;
+            block[0x59] = fogColor2.B;
+            block[0x5A] = fogColor2.G;
+            block[0x5B] = fogColor2.R;
             WriteFloat(block, 0x5C, fogNearDist1);
 
             WriteFloat(block, 0x60, fogNearIntensity1);

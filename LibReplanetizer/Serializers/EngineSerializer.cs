@@ -396,14 +396,15 @@ namespace LibReplanetizer.Serializers
 
             for (int i = 0; i < textures.Count; i++)
             {
-                while (vramBytes.Count % 0x10 != 0) vramBytes.Add(0);
+                Pad(vramBytes);
+
                 int vramOffset = vramBytes.Count;
 
                 textures[i].Serialize(vramOffset).CopyTo(outBytes, i * 0x24);
                 vramBytes.AddRange(textures[i].data);
             }
 
-            ReplanetizerFileStream fs = new ReplanetizerFileStream(Path.Join(Path.GetDirectoryName(enginePath), "vram.ps3"), FileMode.Create);
+            ReplanetizerFileStream fs = new ReplanetizerFileStream(Path.Join(Path.GetDirectoryName(enginePath), "vram.ps3"), FileMode.Create, FileAccess.Write);
             fs.Write(vramBytes.ToArray(), 0, vramBytes.Count);
             fs.Close();
 

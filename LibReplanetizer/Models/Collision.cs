@@ -214,6 +214,9 @@ namespace LibReplanetizer.Models
 
         private struct HeroCollisionCell
         {
+            private float unk0x00;
+            private ushort unk0x04;
+            private ushort unk0x06;
             private ushort triCount;
             private ushort vertCount;
             private ushort[] vertices = [];
@@ -223,6 +226,9 @@ namespace LibReplanetizer.Models
             {
                 int entryOffset = num * 0x10;
 
+                unk0x00 = ReadFloat(headerBlock, entryOffset + 0x00);
+                unk0x04 = ReadUshort(headerBlock, entryOffset + 0x04);
+                unk0x06 = ReadUshort(headerBlock, entryOffset + 0x06);
                 triCount = ReadUshort(headerBlock, entryOffset + 0x08);
                 vertCount = ReadUshort(headerBlock, entryOffset + 0x0A);
                 int dataOffset = ReadInt(headerBlock, entryOffset + 0x0C);
@@ -276,6 +282,9 @@ namespace LibReplanetizer.Models
             {
                 int entryOffset = num * 0x10;
 
+                WriteFloat(headerBytes, entryOffset + 0x00, unk0x00);
+                WriteUshort(headerBytes, entryOffset + 0x04, unk0x04);
+                WriteUshort(headerBytes, entryOffset + 0x06, unk0x06);
                 WriteUshort(headerBytes, entryOffset + 0x08, triCount);
                 WriteUshort(headerBytes, entryOffset + 0x0A, vertCount);
                 WriteInt(headerBytes, entryOffset + 0x0C, dataOffset);

@@ -416,8 +416,6 @@ namespace LibReplanetizer
                 vramParser.GetTextures(textures);
             }
 
-            textures.AddRange(spaceshipTextures);
-
             LOGGER.Info("Level parsing done");
             valid = true;
         }
@@ -477,6 +475,8 @@ namespace LibReplanetizer
                     mobyModel.animations = playerAnimations;
                 }
             });
+
+            textures.AddRange(spaceshipTextures);
         }
 
         public void Dispose()
@@ -492,6 +492,10 @@ namespace LibReplanetizer
         {
             string? directory;
             if (File.Exists(outputFile) && File.GetAttributes(outputFile).HasFlag(FileAttributes.Directory))
+            {
+                directory = outputFile;
+            }
+            else if (Directory.Exists(outputFile))
             {
                 directory = outputFile;
             }
