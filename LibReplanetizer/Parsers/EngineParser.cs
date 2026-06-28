@@ -111,7 +111,7 @@ namespace LibReplanetizer.Parsers
             return GetTextureConfigMenu(engineHead.textureConfigMenuPointer, engineHead.textureConfigMenuCount);
         }
 
-        public Model GetCollisionModel()
+        public Collision GetCollisionModel()
         {
             return GetCollisionModel(engineHead.collisionPointer);
         }
@@ -121,25 +121,6 @@ namespace LibReplanetizer.Parsers
             if (engineHead.renderDefPointer > 0)
             {
                 return ReadArbBytes(engineHead.renderDefPointer, engineHead.collisionPointer - engineHead.renderDefPointer);
-            }
-            else
-            {
-                return new byte[0];
-            }
-        }
-
-        public byte[] GetCollisionBytes()
-        {
-            if (engineHead.collisionPointer > 0)
-            {
-                if (engineHead.game == GameType.RaC1)
-                {
-                    return ReadBlock(fileStream, engineHead.collisionPointer, engineHead.mobyModelPointer - engineHead.collisionPointer);
-                }
-                else
-                {
-                    return ReadBlock(fileStream, engineHead.collisionPointer, engineHead.tieModelPointer - engineHead.collisionPointer);
-                }
             }
             else
             {

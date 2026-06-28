@@ -23,7 +23,7 @@ namespace LibReplanetizer.Serializers
         public void Save(Level level, string directory)
         {
             enginePath = Path.Join(directory, "engine.ps3");
-            ReplanetizerFileStream fs = new ReplanetizerFileStream(enginePath, FileMode.Create);
+            ReplanetizerFileStream fs = new ReplanetizerFileStream(enginePath, FileMode.Create, FileAccess.Write);
 
             switch (level.game.num)
             {
@@ -46,37 +46,36 @@ namespace LibReplanetizer.Serializers
         {
             fs.Seek(0x90, SeekOrigin.Begin);
 
-            EngineHeader engineHeader = new EngineHeader
-            {
-                game = level.game,
-                uiElementPointer = SeekWrite(fs, WriteUiElements(level.uiElements, (int) fs.Position)),
-                skyboxPointer = SeekWrite(fs, level.skybox.Serialize((int) fs.Position)),
-                terrainPointer = SeekWrite(fs, WriteTfrags(level.terrainEngine, (int) fs.Position, level.game)),
-                renderDefPointer = SeekWrite(fs, level.renderDefBytes),
-                collisionPointer = SeekWrite(fs, level.collBytesEngine),
-                mobyModelPointer = SeekWrite(fs, WriteMobies(level.mobyModels, (int) fs.Position)),
-                playerAnimationPointer = SeekWrite(fs, WritePlayerAnimations(level.playerAnimations, (int) fs.Position)),
-                gadgetPointer = SeekWrite(fs, WriteWeapons(level.gadgetModels, (int) fs.Position)),
-                tieModelPointer = SeekWrite(fs, WriteTieModels(level.tieModels, (int) fs.Position)),
-                tiePointer = SeekWrite(fs, WriteTies(level.ties, (int) fs.Position)),
-                shrubModelPointer = SeekWrite(fs, WriteShrubModels(level.shrubModels, (int) fs.Position)),
-                shrubPointer = SeekWrite(fs, WriteShrubs(level.shrubs)),
-                textureConfigMenuPointer = SeekWrite(fs, WriteTextureConfigMenus(level.textureConfigMenus)),
-                texture2dPointer = SeekWrite(fs, level.billboardBytes),
-                soundConfigPointer = SeekWrite(fs, level.soundConfigBytes),
-                lightPointer = SeekWrite(fs, WriteLights(level.lights)),
-                lightConfigPointer = SeekWrite(fs, WriteLightConfig(level.lightConfig)),
-                texturePointer = SeekWrite(fs, WriteTextures(level.textures)),
-                // Counts
-                tieModelCount = level.tieModels.Count,
-                tieCount = level.ties.Count,
-                shrubModelCount = level.shrubModels.Count,
-                shrubCount = level.shrubs.Count,
-                gadgetCount = level.gadgetModels.Count,
-                textureCount = level.textures.Count,
-                lightCount = level.lights.Count,
-                textureConfigMenuCount = level.textureConfigMenus.Count,
-            };
+            EngineHeader engineHeader = new EngineHeader();
+
+            engineHeader.game = level.game;
+            engineHeader.uiElementPointer = SeekWrite(fs, WriteUiElements(level.uiElements, (int) fs.Position));
+            engineHeader.skyboxPointer = SeekWrite(fs, level.skybox.Serialize((int) fs.Position));
+            engineHeader.terrainPointer = SeekWrite(fs, WriteTfrags(level.terrainEngine, (int) fs.Position, level.game));
+            engineHeader.renderDefPointer = SeekWrite(fs, level.renderDefBytes);
+            engineHeader.collisionPointer = SeekWrite(fs, level.collisionEngine.Serialize());
+            engineHeader.mobyModelPointer = SeekWrite(fs, WriteMobies(level.mobyModels, (int) fs.Position));
+            engineHeader.playerAnimationPointer = SeekWrite(fs, WritePlayerAnimations(level.playerAnimations, (int) fs.Position));
+            engineHeader.gadgetPointer = SeekWrite(fs, WriteWeapons(level.gadgetModels, (int) fs.Position));
+            engineHeader.tieModelPointer = SeekWrite(fs, WriteTieModels(level.tieModels, (int) fs.Position));
+            engineHeader.tiePointer = SeekWrite(fs, WriteTies(level.ties, (int) fs.Position));
+            engineHeader.shrubModelPointer = SeekWrite(fs, WriteShrubModels(level.shrubModels, (int) fs.Position));
+            engineHeader.shrubPointer = SeekWrite(fs, WriteShrubs(level.shrubs));
+            engineHeader.textureConfigMenuPointer = SeekWrite(fs, WriteTextureConfigMenus(level.textureConfigMenus));
+            engineHeader.texture2dPointer = SeekWrite(fs, level.billboardBytes);
+            engineHeader.soundConfigPointer = SeekWrite(fs, level.soundConfigBytes);
+            engineHeader.lightPointer = SeekWrite(fs, WriteLights(level.lights));
+            engineHeader.lightConfigPointer = SeekWrite(fs, WriteLightConfig(level.lightConfig));
+            engineHeader.texturePointer = SeekWrite(fs, WriteTextures(level.textures));
+            // Counts
+            engineHeader.tieModelCount = level.tieModels.Count;
+            engineHeader.tieCount = level.ties.Count;
+            engineHeader.shrubModelCount = level.shrubModels.Count;
+            engineHeader.shrubCount = level.shrubs.Count;
+            engineHeader.gadgetCount = level.gadgetModels.Count;
+            engineHeader.textureCount = level.textures.Count;
+            engineHeader.lightCount = level.lights.Count;
+            engineHeader.textureConfigMenuCount = level.textureConfigMenus.Count;
 
             // Seek to the beginning and write the header now that we have all the pointers
             byte[] head = engineHeader.Serialize();
@@ -94,7 +93,7 @@ namespace LibReplanetizer.Serializers
                 uiElementPointer = SeekWrite(fs, WriteUiElements(level.uiElements, (int) fs.Position)),
                 terrainPointer = SeekWrite(fs, WriteTfrags(level.terrainEngine, (int) fs.Position, level.game)),
                 renderDefPointer = SeekWrite(fs, level.renderDefBytes),
-                collisionPointer = SeekWrite(fs, level.collBytesEngine),
+                collisionPointer = SeekWrite(fs, level.collisionEngine.Serialize()),
                 tieModelPointer = SeekWrite(fs, WriteTieModels(level.tieModels, (int) fs.Position)),
                 tiePointer = SeekWrite(fs, WriteTies(level.ties, (int) fs.Position)),
                 shrubModelPointer = SeekWrite(fs, WriteShrubModels(level.shrubModels, (int) fs.Position)),
@@ -138,7 +137,7 @@ namespace LibReplanetizer.Serializers
                 unk9Pointer = SeekWrite(fs, level.unk9),
                 terrainPointer = SeekWrite(fs, WriteTfrags(level.terrainEngine, (int) fs.Position, level.game)),
                 renderDefPointer = SeekWrite(fs, level.renderDefBytes),
-                collisionPointer = SeekWrite(fs, level.collBytesEngine),
+                collisionPointer = SeekWrite(fs, level.collisionEngine.Serialize()),
                 shrubModelPointer = SeekWrite(fs, WriteShrubModels(level.shrubModels, (int) fs.Position)),
                 shrubPointer = SeekWrite(fs, WriteShrubs(level.shrubs)),
                 unk5Pointer = SeekWrite(fs, level.unk5),

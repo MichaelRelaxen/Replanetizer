@@ -6,6 +6,7 @@
 // Please see the LICENSE.md file for more details.
 
 using LibReplanetizer.LevelObjects;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
@@ -224,7 +225,7 @@ namespace LibReplanetizer.Models
 
                 triCount = ReadUshort(headerBlock, entryOffset + 0x08);
                 vertCount = ReadUshort(headerBlock, entryOffset + 0x0A);
-                uint dataOffset = ReadUint(headerBlock, entryOffset + 0x0C);
+                int dataOffset = ReadInt(headerBlock, entryOffset + 0x0C);
 
                 byte[] dataBlock = ReadBlock(fs, baseOffset + dataOffset, triCount * 0x04 + vertCount * 0x08);
 
@@ -271,13 +272,13 @@ namespace LibReplanetizer.Models
                 totalVertexCount += vertCount;
             }
 
-            public byte[] Serialize(int num, byte[] headerBytes, uint dataOffset)
+            public byte[] Serialize(int num, byte[] headerBytes, ref int dataOffset)
             {
                 int entryOffset = num * 0x10;
 
                 WriteUshort(headerBytes, entryOffset + 0x08, triCount);
                 WriteUshort(headerBytes, entryOffset + 0x0A, vertCount);
-                WriteUint(headerBytes, entryOffset + 0x0C, dataOffset);
+                WriteInt(headerBytes, entryOffset + 0x0C, dataOffset);
 
                 byte[] bytes = new byte[triCount * 0x04 + vertCount * 0x08];
 
@@ -296,6 +297,8 @@ namespace LibReplanetizer.Models
                     bytes[tOff + 0x01] = indices[t * 3 + 1];
                     bytes[tOff + 0x02] = indices[t * 3 + 2];
                 }
+
+                dataOffset += bytes.Length;
 
                 return bytes;
             }
@@ -410,7 +413,6 @@ namespace LibReplanetizer.Models
             {
                 heroCells[i].GetModelData(vertexList, indexList, ref totalVertexCount);
             }
-
         }
 
         public byte[] Serialize()
@@ -434,14 +436,132 @@ namespace LibReplanetizer.Models
 
         private byte[] SerializeStandardCollision()
         {
-            // TODO
-            return [];
+            // Serialize all cells
+            var cellBytes = new Dictionary<(ushort z, ushort y, ushort x), byte[]>();
+            foreach (var cell in cells)
+            {
+                cellBytes[(cell.zCell, cell.yCell, cell.xCell)] = cell.Serialize();
+            }
+
+            // Compute total size: Z header + Z block + Y headers/blocks + X headers/blocks + cell data
+            int totalSize = 0x04 + zCount * 0x04;
+
+            for (ushort z = 0; z < zCount; z++)
+            {
+                if (yCount[z] == 0) continue;
+                totalSize += 0x04 + yCount[z] * 0x04;
+                for (ushort y = 0; y < yCount[z]; y++)
+                {
+                    if (xCount[z][y] == 0) continue;
+                    totalSize += 0x04 + xCount[z][y] * 0x04;
+                    for (ushort x = 0; x < xCount[z][y]; x++)
+                    {
+                        if (cellBytes.TryGetValue((z, y, x), out byte[]? cellEntryBytes))
+                        {
+                            totalSize += cellEntryBytes.Length;
+                        }
+                    }
+                }
+            }
+
+            byte[] bytes = new byte[totalSize];
+
+            // Z header
+            WriteUshort(bytes, 0x00, zShift);
+            WriteUshort(bytes, 0x02, zCount);
+
+            // Z block + Y data
+            int currentOffset = 0x04 + zCount * 0x04;
+
+            for (ushort z = 0; z < zCount; z++)
+            {
+                if (yCount[z] == 0)
+                {
+                    WriteInt(bytes, 0x04 + z * 0x04, 0);
+                    continue;
+                }
+
+                WriteInt(bytes, 0x04 + z * 0x04, currentOffset);
+
+                // Y header
+                WriteUshort(bytes, currentOffset, yShift[z]);
+                WriteUshort(bytes, currentOffset + 0x02, yCount[z]);
+
+                // Y block (offsets to X headers)
+                int yBlockOffset = currentOffset + 0x04;
+                int xDataOffset = yBlockOffset + yCount[z] * 0x04;
+
+                for (ushort y = 0; y < yCount[z]; y++)
+                {
+                    if (xCount[z][y] == 0)
+                    {
+                        WriteInt(bytes, yBlockOffset + y * 0x04, 0);
+                        continue;
+                    }
+
+                    WriteInt(bytes, yBlockOffset + y * 0x04, xDataOffset);
+
+                    // X header
+                    WriteUshort(bytes, xDataOffset, xShift[z][y]);
+                    WriteUshort(bytes, xDataOffset + 0x02, xCount[z][y]);
+
+                    // X block (offsets to cell data)
+                    int xBlockOffset = xDataOffset + 0x04;
+                    int cellDataOffset = xBlockOffset + xCount[z][y] * 0x04;
+
+                    for (ushort x = 0; x < xCount[z][y]; x++)
+                    {
+                        if (cellBytes.TryGetValue((z, y, x), out byte[]? cellData))
+                        {
+                            WriteInt(bytes, xBlockOffset + x * 0x04, cellDataOffset);
+                            Buffer.BlockCopy(cellData, 0, bytes, cellDataOffset, cellData.Length);
+                            cellDataOffset += cellData.Length;
+                        }
+                        else
+                        {
+                            WriteInt(bytes, xBlockOffset + x * 0x04, 0);
+                        }
+                    }
+
+                    xDataOffset = cellDataOffset;
+                }
+
+                currentOffset = xDataOffset;
+            }
+
+            return bytes;
         }
 
         private byte[] SerializeHeroCollision()
         {
-            // TODO
-            return [];
+            // TODO: Consider aligning
+            byte[] headerBytes = new byte[heroCells.Count * 0x10];
+
+            List<byte[]> cellBytes = new List<byte[]>(heroCells.Count);
+
+            int dataOffset = 0x10 + headerBytes.Length;
+
+            for (int i = 0; i < heroCells.Count; i++)
+            {
+                cellBytes.Add(heroCells[i].Serialize(i, headerBytes, ref dataOffset));
+            }
+
+            byte[] bytes = new byte[dataOffset];
+
+            WriteInt(bytes, 0x00, heroCells.Count);
+
+            int offset = 0x10;
+            headerBytes.CopyTo(bytes, offset);
+
+            offset += headerBytes.Length;
+
+            for (int i = 0; i < heroCells.Count; i++)
+            {
+                cellBytes[i].CopyTo(bytes, offset);
+                offset += cellBytes[i].Length;
+            }
+
+            return bytes;
         }
     }
 }

@@ -25,6 +25,7 @@ using static LibReplanetizer.DataFunctions;
 using static LibReplanetizer.Utilities;
 using Texture = LibReplanetizer.Texture;
 using SixLabors.ImageSharp;
+using LibReplanetizer.Models;
 
 namespace Replanetizer.Frames
 {
@@ -157,7 +158,8 @@ namespace Replanetizer.Frames
                                 {
                                     case ".rcc":
                                         FileStream fs = File.Open(res, FileMode.Create);
-                                        fs.Write(level.collBytesEngine, 0, level.collBytesEngine.Length);
+                                        byte[] collisionBytes = level.collisionEngine.Serialize();
+                                        fs.Write(collisionBytes, 0, collisionBytes.Length);
                                         fs.Close();
                                         break;
                                     default:
@@ -210,7 +212,7 @@ namespace Replanetizer.Frames
                             if (res.Length > 0)
                             {
                                 FileStream fs = File.Open(res, FileMode.Open);
-                                level.collBytesEngine = ReadBlock(fs, 0, (int) fs.Length);
+                                level.collisionEngine = new Collision(fs, 0);
                                 fs.Close();
                             }
                             InvalidateView();

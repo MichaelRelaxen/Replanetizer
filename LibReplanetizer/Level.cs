@@ -35,7 +35,7 @@ namespace LibReplanetizer
         public List<Model> gadgetModels;
         public List<Model> armorModels;
         public List<MobyModel> spaceshipModels;
-        public Model collisionEngine;
+        public Collision collisionEngine;
         public List<Collision> collisionChunks;
         public List<Texture> textures;
         public List<Texture> spaceshipTextures;
@@ -44,7 +44,6 @@ namespace LibReplanetizer
         public SkyboxModel skybox;
 
         public byte[] renderDefBytes;
-        public byte[] collBytesEngine;
         public List<byte[]> collBytesChunks;
         public byte[] billboardBytes;
         public byte[] soundConfigBytes;
@@ -141,7 +140,6 @@ namespace LibReplanetizer
 
                 //REMOVE THESE ASAP!!!!!111
                 renderDefBytes = engineParser.GetRenderDefBytes();
-                collBytesEngine = engineParser.GetCollisionBytes();
                 billboardBytes = engineParser.GetBillboardBytes();
                 soundConfigBytes = engineParser.GetSoundConfigBytes();
 
@@ -338,7 +336,7 @@ namespace LibReplanetizer
                 if (model != null)
                 {
                     // Set a canonical id so Replanetizer can more easily differentiate between armor models
-                    model.id = (short)armorModels.Count;
+                    model.id = (short) armorModels.Count;
                     armorModels.Add(model);
                 }
 

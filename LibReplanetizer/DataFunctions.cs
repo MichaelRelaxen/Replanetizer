@@ -292,5 +292,15 @@ namespace LibReplanetizer
                 arr.Add(0);
             }
         }
+
+        public static int AlignAddressUp(int offset, int alignment = 0x10)
+        {
+            return ((offset + alignment - 1) / alignment) * alignment;
+        }
+
+        public static int AlignAddressDown(int offset, int alignment = 0x10)
+        {
+            return offset - offset % alignment;
+        }
     }
 }
