@@ -106,7 +106,7 @@ namespace LibReplanetizer
         public List<EnvTransition> envTransitions;
         public List<SoundInstance> soundInstances;
         public List<GrindPath> grindPaths;
-        public List<GlobalPvarBlock> type4Cs;
+        public List<GlobalPvarBlock> pvarBlocks;
 
         public List<byte[]> pVars;
         public List<Cuboid> cuboids;
@@ -118,6 +118,8 @@ namespace LibReplanetizer
         public List<int> mobyIds;
         public List<int> tieIds;
         public List<int> shrubIds;
+
+        public int pvarBlocksHeaderPadding = 0x10;
 
         ~Level()
         {
@@ -264,7 +266,7 @@ namespace LibReplanetizer
                 soundInstances = gameplayParser.GetSoundInstances();
                 grindPaths = gameplayParser.GetGrindPaths();
 
-                type4Cs = gameplayParser.GetType4Cs();
+                pvarBlocks = gameplayParser.GetPvarBlocks(ref pvarBlocksHeaderPadding);
                 pvarScratchPads = gameplayParser.GetPvarScratchPads();
                 pvarRewires = gameplayParser.GetPvarRewires();
 

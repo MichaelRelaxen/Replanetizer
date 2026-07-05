@@ -276,6 +276,15 @@ namespace LibReplanetizer
             return length;
         }
 
+        public static int GetLength40(int length, int alignment = 0)
+        {
+            while (length % 0x40 != alignment)
+            {
+                length++;
+            }
+            return length;
+        }
+
         public static int GetLength100(int length)
         {
             while (length % 0x100 != 0)

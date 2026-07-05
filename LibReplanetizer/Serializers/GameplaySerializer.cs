@@ -72,7 +72,7 @@ namespace LibReplanetizer.Serializers
                 pvarScratchPadPointer = SeekWrite(fs, GetPvarScratchPadBytes(level.pvarScratchPads)),
                 pvarRewirePointer = SeekWrite(fs, GetPvarRewireBytes(level.pvarRewires)),
                 mobyGroupsPointer = SeekWrite(fs, level.unk6),
-                globalPvarPointer = SeekWrite(fs, GetType4CBytes(level.type4Cs)),
+                globalPvarPointer = SeekWrite(fs, GetPvarBlocksBytes(level.pvarBlocks, level.pvarBlocksHeaderPadding)),
                 tieIdPointer = SeekWrite(fs, GetIdBytes(level.tieIds)),
                 tiePointer = SeekWrite(fs, level.tieData),
                 shrubIdPointer = SeekWrite(fs, GetIdBytes(level.shrubIds)),
@@ -322,7 +322,7 @@ namespace LibReplanetizer.Serializers
             byte[] bytes = new byte[0x10 + levelobjects.Count * elementSize];
 
             //Header
-            WriteInt(bytes, 0, levelobjects.Count);
+            WriteInt(bytes, 0x00, levelobjects.Count);
 
             for (int i = 0; i < levelobjects.Count; i++)
             {
@@ -334,7 +334,7 @@ namespace LibReplanetizer.Serializers
 
         public byte[] GetGrindPathsBytes(List<GrindPath> grindPaths)
         {
-            if (grindPaths == null) return new byte[0x10];
+            if (grindPaths == null) return [];
 
             List<byte> splineData = new List<byte>();
             List<int> offsets = new List<int>();
@@ -348,11 +348,11 @@ namespace LibReplanetizer.Serializers
                 offset += splineBytes.Length;
             }
 
-            byte[] bytes = new byte[0x10 + grindPaths.Count * GrindPath.ELEMENTSIZE];
+            byte[] grindPathBytes = new byte[grindPaths.Count * GrindPath.ELEMENTSIZE];
 
             for (int i = 0; i < grindPaths.Count; i++)
             {
-                grindPaths[i].ToByteArray().CopyTo(bytes, 0x10 + i * GrindPath.ELEMENTSIZE);
+                grindPaths[i].ToByteArray().CopyTo(grindPathBytes, i * GrindPath.ELEMENTSIZE);
             }
 
             byte[] offsetBytes = new byte[0x04 * grindPaths.Count];
@@ -362,12 +362,14 @@ namespace LibReplanetizer.Serializers
             }
 
             //Header
-            WriteInt(bytes, 0x00, grindPaths.Count);
-            WriteInt(bytes, 0x04, bytes.Length + offsetBytes.Length);
-            WriteInt(bytes, 0x08, splineData.Count);
+            byte[] headerBytes = new byte[0x10];
+            WriteInt(headerBytes, 0x00, grindPaths.Count);
+            WriteInt(headerBytes, 0x04, 0x10 + grindPathBytes.Length + offsetBytes.Length);
+            WriteInt(headerBytes, 0x08, splineData.Count);
 
             List<byte> block = new List<byte>();
-            block.AddRange(bytes);
+            block.AddRange(headerBytes);
+            block.AddRange(grindPathBytes);
             block.AddRange(offsetBytes);
             block.AddRange(splineData);
 
@@ -392,19 +394,19 @@ namespace LibReplanetizer.Serializers
             return bytes;
         }
 
-        public byte[] GetType4CBytes(List<GlobalPvarBlock> type4Cs)
+        public byte[] GetPvarBlocksBytes(List<GlobalPvarBlock> pvarBlocks, int paddingSize)
         {
-            if (type4Cs == null) return new byte[0x10];
+            if (pvarBlocks == null) return [];
 
-            byte[] bytes = new byte[0x10 + 0x10 + type4Cs.Count * GlobalPvarBlock.ELEMENTSIZE];
+            byte[] bytes = new byte[0x10 + paddingSize + pvarBlocks.Count * GlobalPvarBlock.ELEMENTSIZE];
 
             //Header
-            WriteInt(bytes, 0x00, 0x10);
-            WriteInt(bytes, 0x04, type4Cs.Count);
+            WriteInt(bytes, 0x00, paddingSize);
+            WriteInt(bytes, 0x04, pvarBlocks.Count);
 
-            for (int i = 0; i < type4Cs.Count; i++)
+            for (int i = 0; i < pvarBlocks.Count; i++)
             {
-                type4Cs[i].ToByteArray().CopyTo(bytes, 0x10 + 0x10 + i * GlobalPvarBlock.ELEMENTSIZE);
+                pvarBlocks[i].ToByteArray().CopyTo(bytes, 0x10 + paddingSize + i * GlobalPvarBlock.ELEMENTSIZE);
             }
 
             return bytes;

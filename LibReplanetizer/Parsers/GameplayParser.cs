@@ -11,6 +11,7 @@ using LibReplanetizer.Models;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using static LibReplanetizer.DataFunctions;
 
 namespace LibReplanetizer.Parsers
@@ -230,20 +231,40 @@ namespace LibReplanetizer.Parsers
             return cylinders;
         }
 
-        public List<GlobalPvarBlock> GetType4Cs()
+        public List<GlobalPvarBlock> GetPvarBlocks(ref int pvarBlocksHeaderPadding)
         {
-            List<GlobalPvarBlock> type4Cs = new List<GlobalPvarBlock>();
-            if (gameplayHeader.globalPvarPointer == 0) { return type4Cs; }
+            List<GlobalPvarBlock> pvarBlocks = new List<GlobalPvarBlock>();
+            if (gameplayHeader.globalPvarPointer == 0) { return pvarBlocks; }
 
-            int offset = ReadInt(ReadBlock(fileStream, gameplayHeader.globalPvarPointer, 4), 0);
-            int count = ReadInt(ReadBlock(fileStream, gameplayHeader.globalPvarPointer + 4, 4), 0);
+            byte[] headerBlock = ReadBlock(fileStream, gameplayHeader.globalPvarPointer, 0x10);
+
+            int offset = ReadInt(headerBlock, 0x00);
+            int count = ReadInt(headerBlock, 0x04);
+            int unk0x08 = ReadInt(headerBlock, 0x08);
+            int unk0x0C = ReadInt(headerBlock, 0x0C);
+
+            Utilities.DebugAssert(unk0x08 == 0, "Header[0x08] is not 0!");
+            Utilities.DebugAssert(unk0x0C == 0, "Header[0x0C] is not 0!");
+
+            byte[] unkBlock = ReadBlock(fileStream, gameplayHeader.globalPvarPointer + 0x10, offset);
+
+            for (int i = 0; i < offset / 0x04; i++)
+            {
+                int unkValue = ReadInt(unkBlock, i * 0x04);
+                Utilities.DebugAssert(unkValue == 0, "Unknown pVar header block contains data!");
+            }
+
+            // TODO: Figure out why different levels have different padding, the padding does not seem to align to any particular value,
+            // in fact, it reduces alignment size at times.
+            pvarBlocksHeaderPadding = offset;
+
             byte[] type4CBlock = ReadBlock(fileStream, gameplayHeader.globalPvarPointer + 0x10 + offset, GlobalPvarBlock.ELEMENTSIZE * count);
             for (int i = 0; i < count; i++)
             {
-                type4Cs.Add(new GlobalPvarBlock(type4CBlock, i));
+                pvarBlocks.Add(new GlobalPvarBlock(type4CBlock, i));
             }
 
-            return type4Cs;
+            return pvarBlocks;
         }
 
         public List<EnvTransition> GetEnvTransitions()
@@ -332,9 +353,13 @@ namespace LibReplanetizer.Parsers
             if (gameplayHeader.grindPathsPointer == 0) { return grindPaths; }
 
             byte[] head = ReadBlock(fileStream, gameplayHeader.grindPathsPointer, 0x10);
+
             int count = ReadInt(head, 0x00);
             int splineOffset = ReadInt(head, 0x04);
             int splineSize = ReadInt(head, 0x08);
+            int unk0x12 = ReadInt(head, 0x0C);
+
+            Utilities.DebugAssert(unk0x12 == 0, "Header[0x0C] is not 0!");
 
             byte[] grindPathBlock = ReadBlock(fileStream, gameplayHeader.grindPathsPointer + 0x10, count * GrindPath.ELEMENTSIZE);
             byte[] splineHeadBlock = ReadBlock(fileStream, gameplayHeader.grindPathsPointer + 0x10 + count * GrindPath.ELEMENTSIZE, count * 0x04);
@@ -397,7 +422,14 @@ namespace LibReplanetizer.Parsers
             List<EnvSample> envSamples = new List<EnvSample>();
             if (gameplayHeader.envSamplesPointer == 0) { return envSamples; }
 
-            int count = ReadInt(ReadBlock(fileStream, gameplayHeader.envSamplesPointer, 4), 0);
+            byte[] headBlock = ReadBlock(fileStream, gameplayHeader.envSamplesPointer, 0x10);
+
+            int count = ReadInt(headBlock, 0x00);
+
+            Utilities.DebugAssert(ReadInt(headBlock, 0x04) == 0, "Header[0x04] is not 0!");
+            Utilities.DebugAssert(ReadInt(headBlock, 0x08) == 0, "Header[0x08] is not 0!");
+            Utilities.DebugAssert(ReadInt(headBlock, 0x0C) == 0, "Header[0x0C] is not 0!");
+
             Byte[] envSamplesBlock = ReadBlock(fileStream, gameplayHeader.envSamplesPointer + 0x10, count * EnvSample.GetElementSize(game));
             for (int i = 0; i < count; i++)
             {

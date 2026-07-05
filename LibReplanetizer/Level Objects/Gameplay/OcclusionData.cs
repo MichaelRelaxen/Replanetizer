@@ -49,7 +49,8 @@ namespace LibReplanetizer.LevelObjects
 
         public byte[] ToByteArray()
         {
-            byte[] bytes = new byte[0x10 + mobyData.Count * 0x08 + tieData.Count * 0x08 + shrubData.Count * 0x08];
+            int bytesLength = GetLength40(0x10 + mobyData.Count * 0x08 + tieData.Count * 0x08 + shrubData.Count * 0x08);
+            byte[] bytes = new byte[bytesLength];
             WriteInt(bytes, 0x00, mobyData.Count);
             WriteInt(bytes, 0x04, tieData.Count);
             WriteInt(bytes, 0x08, shrubData.Count);
