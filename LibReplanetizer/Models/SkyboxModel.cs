@@ -76,7 +76,7 @@ namespace LibReplanetizer.Models
 
             indexBuffer = GetIndices(fs, faceOffset, faceCount);
 
-            someColor = Color.FromRgba(alpha, red, green, blue).ToPixel<Rgba32>();
+            someColor = Color.FromRgba(red, green, blue, alpha).ToPixel<Rgba32>();
         }
 
         public byte[] Serialize(int startOffset)

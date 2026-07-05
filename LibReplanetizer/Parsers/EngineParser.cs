@@ -132,6 +132,10 @@ namespace LibReplanetizer.Parsers
         {
             if (engineHead.game == GameType.RaC1)
             {
+                // TODO: engineHead.soundConfigPointer can be NULL! This will break everything!
+                if (engineHead.soundConfigPointer == 0)
+                    return [];
+
                 return ReadArbBytes(engineHead.texture2dPointer, engineHead.soundConfigPointer - engineHead.texture2dPointer);
             }
             else

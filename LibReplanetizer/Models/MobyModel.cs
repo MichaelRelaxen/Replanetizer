@@ -13,6 +13,145 @@ using static LibReplanetizer.DataFunctions;
 
 namespace LibReplanetizer.Models
 {
+    public class Type10CollisionEntry1
+    {
+        public ushort[] vals = new ushort[16];
+
+        public Type10CollisionEntry1() { }
+
+        public Type10CollisionEntry1(byte[] data, int offset)
+        {
+            for (int i = 0; i < 16; i++)
+                vals[i] = ReadUshort(data, offset + i * 2);
+        }
+
+        public byte[] Serialize()
+        {
+            byte[] outbytes = new byte[32];
+            for (int i = 0; i < 16; i++)
+                WriteUshort(outbytes, i * 2, vals[i]);
+            return outbytes;
+        }
+    }
+
+    public class Type10CollisionEntry2
+    {
+        public ushort[] vals = new ushort[2];
+
+        public Type10CollisionEntry2() { }
+
+        public Type10CollisionEntry2(byte[] data, int offset)
+        {
+            for (int i = 0; i < 2; i++)
+                vals[i] = ReadUshort(data, offset + i * 2);
+        }
+
+        public byte[] Serialize()
+        {
+            byte[] outbytes = new byte[4];
+            for (int i = 0; i < 2; i++)
+                WriteUshort(outbytes, i * 2, vals[i]);
+            return outbytes;
+        }
+    }
+
+    public class Type10CollisionEntry3
+    {
+        public ushort[] vals = new ushort[4];
+
+        public Type10CollisionEntry3() { }
+
+        public Type10CollisionEntry3(byte[] data, int offset)
+        {
+            for (int i = 0; i < 4; i++)
+                vals[i] = ReadUshort(data, offset + i * 2);
+        }
+
+        public byte[] Serialize()
+        {
+            byte[] outbytes = new byte[8];
+            for (int i = 0; i < 4; i++)
+                WriteUshort(outbytes, i * 2, vals[i]);
+            return outbytes;
+        }
+    }
+
+    public class Type10Collision
+    {
+        public int meta { get; set; }
+        public int length1 { get; set; }
+        public int length2 { get; set; }
+        public int length3 { get; set; }
+
+        public List<Type10CollisionEntry1> data1 { get; set; }
+        public List<Type10CollisionEntry2> data2 { get; set; }
+        public List<Type10CollisionEntry3> data3 { get; set; }
+
+        public Type10Collision()
+        {
+            data1 = new List<Type10CollisionEntry1>();
+            data2 = new List<Type10CollisionEntry2>();
+            data3 = new List<Type10CollisionEntry3>();
+        }
+
+        public Type10Collision(byte[] data)
+        {
+            meta = ReadInt(data, 0x00);
+            length1 = ReadInt(data, 0x04);
+            length2 = ReadInt(data, 0x08);
+            length3 = ReadInt(data, 0x0C);
+
+            data1 = new List<Type10CollisionEntry1>();
+            for (int i = 0; i < length1; i += 32)
+                data1.Add(new Type10CollisionEntry1(data, 0x10 + i));
+
+            data2 = new List<Type10CollisionEntry2>();
+            for (int i = 0; i < length2; i += 4)
+                data2.Add(new Type10CollisionEntry2(data, 0x10 + length1 + i));
+
+            data3 = new List<Type10CollisionEntry3>();
+            for (int i = 0; i < length3; i += 8)
+                data3.Add(new Type10CollisionEntry3(data, 0x10 + length1 + length2 + i));
+        }
+
+        public int GetLength()
+        {
+            return 0x10 + length1 + length2 + length3;
+        }
+
+        public byte[] Serialize()
+        {
+            length1 = data1.Count * 32;
+            length2 = data2.Count * 4;
+            length3 = data3.Count * 8;
+
+            byte[] outbytes = new byte[GetLength()];
+            WriteInt(outbytes, 0x00, meta);
+            WriteInt(outbytes, 0x04, length1);
+            WriteInt(outbytes, 0x08, length2);
+            WriteInt(outbytes, 0x0C, length3);
+
+            int offset = 0x10;
+            foreach (var entry in data1)
+            {
+                entry.Serialize().CopyTo(outbytes, offset);
+                offset += 32;
+            }
+            foreach (var entry in data2)
+            {
+                entry.Serialize().CopyTo(outbytes, offset);
+                offset += 4;
+            }
+            foreach (var entry in data3)
+            {
+                entry.Serialize().CopyTo(outbytes, offset);
+                offset += 8;
+            }
+
+            return outbytes;
+        }
+    }
+
     public class MobyModel : MetalModel
     {
         private static readonly NLog.Logger LOGGER = NLog.LogManager.GetCurrentClassLogger();
@@ -22,8 +161,6 @@ namespace LibReplanetizer.Models
         const int TEXTUREELEMENTSIZE = 0x10;
         const int MESHHEADERSIZE = 0x20;
         const int HEADERSIZE = 0x48;
-
-        public int null1 { get; set; }
 
         [Category("Attributes"), DisplayName("Bone Count")]
         public byte boneCount { get; set; }
@@ -35,8 +172,6 @@ namespace LibReplanetizer.Models
         public byte lpRenderDist { get; set; }            // Low poly render distance
         public byte count8 { get; set; }
 
-        public int null2 { get; set; }
-
         [Category("Culling Parameters"), DisplayName("Position X")]
         public float cullingX { get; set; }
         [Category("Culling Parameters"), DisplayName("Position Y")]
@@ -47,7 +182,6 @@ namespace LibReplanetizer.Models
         public float cullingRadius { get; set; }
 
         public uint color2 { get; set; }               // RGBA color
-        public byte unk1 { get; set; }
         public uint unk6 { get; set; }
 
         public ushort vertexCount2 { get; set; }
@@ -75,7 +209,7 @@ namespace LibReplanetizer.Models
         public override Model? GetSubModel(int index) { return (index < bangles.Count) ? (Model?) bangles[index] : null; }
 
         // Unparsed sections
-        public byte[] type10Block = { };                  // Hitbox
+        public Type10Collision? collisionData = null;                  // Hitbox
 
         private void GetMeshData(FileStream fs, int headerSize, int headerPointer, int baseOffset)
         {
@@ -145,7 +279,8 @@ namespace LibReplanetizer.Models
             byte[] headBlock = ReadBlock(fs, offset, HEADERSIZE);
 
             int meshPointer = ReadInt(headBlock, 0x00);
-            null1 = ReadInt(headBlock, 0x04);
+
+            Utilities.DebugAssert(ReadInt(headBlock, 0x04) == 0, "Header[0x04] is not 0!");
 
             boneCount = headBlock[0x08];
             lpBoneCount = headBlock[0x09];
@@ -159,18 +294,17 @@ namespace LibReplanetizer.Models
             lpRenderDist = headBlock[0x0E];
             count8 = headBlock[0x0F];
 
-            int type10Pointer = ReadInt(headBlock, 0x10);
+            int collisionPointer = ReadInt(headBlock, 0x10);
             int boneMatrixPointer = ReadInt(headBlock, 0x14);
             int boneDataPointer = ReadInt(headBlock, 0x18);
             int attachmentPointer = ReadInt(headBlock, 0x1C);
 
-            null2 = ReadInt(headBlock, 0x20);
+            Utilities.DebugAssert(ReadInt(headBlock, 0x20) == 0, "Header[0x20] is not 0!");
+
             size = ReadFloat(headBlock, 0x24);
             int soundPointer = ReadInt(headBlock, 0x28);
             ushort banglesPointer = ReadUshort(headBlock, 0x2C);
             ushort corncobPointer = ReadUshort(headBlock, 0x2E);
-
-            if (null1 != 0 || null2 != 0) { LOGGER.Warn("Warning: null in model header wan't null"); }
 
             cullingX = ReadFloat(headBlock, 0x30);
             cullingY = ReadFloat(headBlock, 0x34);
@@ -204,6 +338,8 @@ namespace LibReplanetizer.Models
             {
                 byte[] banglesHeader = ReadBlock(fs, offset + banglesPointer * 0x10, 0x04);
 
+                Utilities.DebugAssert(ReadInt(banglesHeader, 0x00) == 0, "Header[0x00] is not 0!");
+
                 // Wrench always loads 15 bangles
                 byte banglesCount = 15;
 
@@ -221,11 +357,16 @@ namespace LibReplanetizer.Models
             }
 
             // Type 10 ( has something to do with collision )
-            if (type10Pointer > 0)
+            if (collisionPointer > 0)
             {
-                byte[] type10Head = ReadBlock(fs, offset + type10Pointer, 0x10);
-                int type10Length = ReadInt(type10Head, 0x04) + ReadInt(type10Head, 0x08) + ReadInt(type10Head, 0x0C);
-                type10Block = ReadBlock(fs, offset + type10Pointer, 0x10 + type10Length);
+                byte[] type10Head = ReadBlock(fs, offset + collisionPointer, 0x10);
+                int type10LengthA = ReadInt(type10Head, 0x04);
+                int type10LengthB = ReadInt(type10Head, 0x08);
+                int type10LengthC = ReadInt(type10Head, 0x0C);
+                int type10Length = type10LengthA + type10LengthB + type10LengthC;
+
+                byte[] type10Block = ReadBlock(fs, offset + collisionPointer, 0x10 + type10Length);
+                collisionData = new Type10Collision(type10Block);
             }
 
             // Bone matrix
@@ -374,10 +515,37 @@ namespace LibReplanetizer.Models
             int metalVertOffset = vertOffset + vertexBytes.Length;
             int faceOffset = GetLength(metalVertOffset + metalVertexBytes.Length, alignment);
             int metalIndexOffset = faceOffset + faceBytes.Length;
-            int type10Offset = GetLength(metalIndexOffset + metalIndexBytes.Length, alignment);
-            int soundOffset = GetLength(type10Offset + type10Block.Length, alignment);
-            int attachmentOffset = GetLength(soundOffset + soundBytes.Length, alignment);
 
+            byte[] bangleBytes = [];
+            int banglesPointer = 0;
+            if (bangles.Count > 0)
+            {
+                int maxBangles = 15;
+                int bangleCount = bangles.Count < maxBangles ? bangles.Count : maxBangles;
+
+                banglesPointer = GetLength(metalIndexOffset + metalIndexBytes.Length, alignment);
+                int bangleDataOffset = GetLength(banglesPointer + 0x04 + maxBangles * 0x04, alignment);
+                List<(int Offset, byte[] Data)> serializedBangles = new List<(int Offset, byte[] Data)>();
+
+                for (int i = 0; i < bangleCount; i++)
+                {
+                    byte[] bangleData = bangles[i].Serialize(bangleDataOffset, alignment);
+                    serializedBangles.Add((bangleDataOffset, bangleData));
+                    bangleDataOffset = GetLength(bangleDataOffset + bangleData.Length, alignment);
+                }
+
+                bangleBytes = new byte[(bangleDataOffset - banglesPointer)];
+                for (int i = 0; i < serializedBangles.Count; i++)
+                {
+                    WriteInt(bangleBytes, 0x04 + i * 0x04, serializedBangles[i].Offset);
+                    serializedBangles[i].Data.CopyTo(bangleBytes, serializedBangles[i].Offset - banglesPointer);
+                }
+            }
+
+            int collisionDataOffset = GetLength(metalIndexOffset + metalIndexBytes.Length + bangleBytes.Length, alignment);
+            int collisionDataLength = collisionData != null ? collisionData.GetLength() : 0;
+            int soundOffset = GetLength(collisionDataOffset + collisionDataLength, alignment);
+            int attachmentOffset = GetLength(soundOffset + soundBytes.Length, alignment);
 
             List<byte> attachmentBytes = new List<byte>();
             if (attachments.Count > 0)
@@ -396,12 +564,10 @@ namespace LibReplanetizer.Models
             }
             else if (indexAttachments.Count > 0)
             {
-                attachmentBytes.AddRange(new byte[] { 0, 0, 0, 0 });
+                attachmentBytes.AddRange([0, 0, 0, 0]);
                 attachmentBytes.AddRange(indexAttachments);
                 attachmentBytes.Add(0xff);
             }
-
-
 
             int boneMatrixOffset = GetLength(attachmentOffset + attachmentBytes.Count, alignment);
             int boneDataOffset = GetLength(boneMatrixOffset + boneMatrixBytes.Length, alignment);
@@ -443,8 +609,8 @@ namespace LibReplanetizer.Models
             outbytes[0x0E] = lpRenderDist;
             outbytes[0x0F] = count8;
 
-            if (type10Block.Length != 0)
-                WriteInt(outbytes, 0x10, type10Offset);
+            if (collisionData != null)
+                WriteInt(outbytes, 0x10, collisionDataOffset);
 
             if (id != 1 && id != 2)
             {
@@ -461,8 +627,9 @@ namespace LibReplanetizer.Models
             if (modelSounds.Count != 0)
                 WriteInt(outbytes, 0x28, soundOffset);
 
-            // TODO: Serialize Bangles
-            outbytes[0x2D] = unk1;
+            if (banglesPointer != 0)
+                WriteUshort(outbytes, 0x2C, (ushort) (banglesPointer / 0x10));
+
             // TODO: Serialize corncobs
 
             WriteFloat(outbytes, 0x30, cullingX);
@@ -482,11 +649,10 @@ namespace LibReplanetizer.Models
             metalVertexBytes.CopyTo(outbytes, metalVertOffset);
             faceBytes.CopyTo(outbytes, faceOffset);
             metalIndexBytes.CopyTo(outbytes, metalIndexOffset);
+            bangleBytes.CopyTo(outbytes, banglesPointer);
 
-            if (type10Block != null)
-            {
-                type10Block.CopyTo(outbytes, type10Offset);
-            }
+            if (collisionData != null)
+                collisionData.Serialize().CopyTo(outbytes, collisionDataOffset);
 
             soundBytes.CopyTo(outbytes, soundOffset);
             attachmentBytes.CopyTo(outbytes, attachmentOffset);

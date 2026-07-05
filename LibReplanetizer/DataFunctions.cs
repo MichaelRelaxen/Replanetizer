@@ -109,30 +109,13 @@ namespace LibReplanetizer
 
         public static byte[] ReadBlock(FileStream fs, long offset, int length)
         {
-            if (length > 0)
-            {
-                fs.Seek(offset, SeekOrigin.Begin);
-                byte[] returnBytes = new byte[length];
-                fs.Read(returnBytes, 0, length);
-                return returnBytes;
-            }
-            else
-            {
-                byte[] returnBytes = new byte[0x10];
-                return returnBytes;
-            }
-        }
+            if (length == 0)
+                return [];
 
-        public static byte[] ReadBlockNopad(FileStream fs, long offset, int length)
-        {
-            if (length > 0)
-            {
-                fs.Seek(offset, SeekOrigin.Begin);
-                byte[] returnBytes = new byte[length];
-                fs.Read(returnBytes, 0, length);
-                return returnBytes;
-            }
-            return new byte[0];
+            fs.Seek(offset, SeekOrigin.Begin);
+            byte[] returnBytes = new byte[length];
+            fs.Read(returnBytes, 0, length);
+            return returnBytes;
         }
 
         public static byte[] ReadString(FileStream fs, int offset)

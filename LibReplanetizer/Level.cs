@@ -174,13 +174,6 @@ namespace LibReplanetizer
                 spaceshipTextures = spaceshipData.textures;
                 LOGGER.Debug("Added {0} spaceship models", spaceshipModels.Count);
 
-                foreach (MobyModel model in spaceshipModels)
-                {
-                    mobyModels.RemoveAll(x => x.id == model.id);
-                }
-
-                mobyModels.AddRange(spaceshipModels);
-
                 LOGGER.Debug("Parsing ties...");
                 ties = engineParser.GetTies(tieModels);
                 LOGGER.Debug("Added {0} ties", ties.Count);
@@ -477,6 +470,13 @@ namespace LibReplanetizer
                     mobyModel.animations = playerAnimations;
                 }
             });
+
+            foreach (MobyModel model in spaceshipModels)
+            {
+                mobyModels.RemoveAll(x => x.id == model.id);
+            }
+
+            mobyModels.AddRange(spaceshipModels);
 
             textures.AddRange(spaceshipTextures);
         }

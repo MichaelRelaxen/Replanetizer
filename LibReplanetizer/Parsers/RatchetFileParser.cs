@@ -35,8 +35,12 @@ namespace LibReplanetizer.Parsers
             byte[] mobyIDBlock = ReadBlock(fileStream, mobyModelPointer + 4, mobyModelCount * 8);
             for (int i = 0; i < mobyModelCount; i++)
             {
-                short modelID = ReadShort(mobyIDBlock, (i * 8) + 2);
-                int offset = ReadInt(mobyIDBlock, (i * 8) + 4);
+                int mobyIDOffset = i * 0x08;
+
+                Utilities.DebugAssert(ReadShort(mobyIDBlock, mobyIDOffset + 0x00) == 0, "Header[0x00] is not 0!");
+                short modelID = ReadShort(mobyIDBlock, mobyIDOffset + 0x02);
+                int offset = ReadInt(mobyIDBlock, mobyIDOffset + 0x04);
+
                 mobyModels.Add(new MobyModel(fileStream, game, modelID, offset));
             }
             return mobyModels;

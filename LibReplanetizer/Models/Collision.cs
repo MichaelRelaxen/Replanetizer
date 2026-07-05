@@ -35,6 +35,8 @@ namespace LibReplanetizer.Models
     {
         const int HEADSIZE = 0x08;
 
+        private bool isEmpty = false;
+
         // Model
 
         public uint[] indBuff = { };
@@ -307,7 +309,7 @@ namespace LibReplanetizer.Models
                     bytes[tOff + 0x02] = indices[t * 3 + 2];
                 }
 
-                dataOffset += bytes.Length;
+                dataOffset = AlignAddressUp(dataOffset + bytes.Length);
 
                 return bytes;
             }
@@ -318,7 +320,11 @@ namespace LibReplanetizer.Models
         public Collision(FileStream fs, int collisionPointer)
         {
             // RaC 1 title screen has no collision
-            if (collisionPointer == 0) return;
+            if (collisionPointer == 0)
+            {
+                isEmpty = true;
+                return;
+            }
 
             byte[] headBlock = ReadBlock(fs, collisionPointer, HEADSIZE);
             int standardCollisionStart = ReadInt(headBlock, 0x00);
@@ -368,6 +374,8 @@ namespace LibReplanetizer.Models
                 yShift[z] = ReadUshort(headYBlock, 0x00);
                 yCount[z] = ReadUshort(headYBlock, 0x02);
 
+                Utilities.DebugAssert(yCount[z] != 0, "Unexpected yCount.");
+
                 byte[] yBlock = ReadBlock(fs, baseOffset + yOffset + 0x04, yCount[z] * 0x04);
 
                 xShift.Add(new ushort[yCount[z]]);
@@ -382,6 +390,8 @@ namespace LibReplanetizer.Models
 
                     xShift[z][y] = ReadUshort(headXBlock, 0x00);
                     xCount[z][y] = ReadUshort(headXBlock, 0x02);
+
+                    Utilities.DebugAssert(xCount[z][y] != 0, "Unexpected xCount.");
 
                     byte[] xBlock = ReadBlock(fs, baseOffset + xOffset + 0x04, xCount[z][y] * 0x04);
 
@@ -426,6 +436,8 @@ namespace LibReplanetizer.Models
 
         public byte[] Serialize()
         {
+            if (isEmpty) return [];
+
             byte[] standardCollisionBlock = SerializeStandardCollision();
             byte[] heroCollisionBlock = SerializeHeroCollision();
 
@@ -467,7 +479,7 @@ namespace LibReplanetizer.Models
                     {
                         if (cellBytes.TryGetValue((z, y, x), out byte[]? cellEntryBytes))
                         {
-                            totalSize += cellEntryBytes.Length;
+                            totalSize = AlignAddressUp(totalSize + cellEntryBytes.Length, 0x04);
                         }
                     }
                 }
@@ -524,7 +536,7 @@ namespace LibReplanetizer.Models
                         {
                             WriteInt(bytes, xBlockOffset + x * 0x04, cellDataOffset);
                             Buffer.BlockCopy(cellData, 0, bytes, cellDataOffset, cellData.Length);
-                            cellDataOffset += cellData.Length;
+                            cellDataOffset = AlignAddressUp(cellDataOffset + cellData.Length, 0x04);
                         }
                         else
                         {
@@ -543,7 +555,6 @@ namespace LibReplanetizer.Models
 
         private byte[] SerializeHeroCollision()
         {
-            // TODO: Consider aligning
             byte[] headerBytes = new byte[heroCells.Count * 0x10];
 
             List<byte[]> cellBytes = new List<byte[]>(heroCells.Count);
@@ -567,7 +578,7 @@ namespace LibReplanetizer.Models
             for (int i = 0; i < heroCells.Count; i++)
             {
                 cellBytes[i].CopyTo(bytes, offset);
-                offset += cellBytes[i].Length;
+                offset = AlignAddressUp(offset + cellBytes[i].Length);
             }
 
             return bytes;
