@@ -8,6 +8,7 @@
 using OpenTK.Mathematics;
 using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using SixLabors.ImageSharp;
 
 namespace LibReplanetizer
@@ -22,6 +23,18 @@ namespace LibReplanetizer
 
     public static class Utilities
     {
+        [Conditional("DEBUG")]
+        public static void DebugAssert(bool condition, string message = "")
+        {
+            if (condition == false)
+            {
+                var stackTrace = new StackTrace();
+                Debug.WriteLine($"Assertion failed: {message}");
+                Debug.WriteLine("at:");
+                Debug.WriteLine(stackTrace.ToString());
+            }
+        }
+
         public static float ToDegreesF(float radians)
         {
             return radians * 180 / (float) Math.PI;
