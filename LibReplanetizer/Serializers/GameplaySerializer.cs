@@ -136,7 +136,7 @@ namespace LibReplanetizer.Serializers
                 cylinderPointer = SeekWrite(fs, SerializeLevelObjects(level.cylinders, Cylinder.ELEMENTSIZE)),
                 pillPointer = SeekWrite(fs, SerializeLevelObjects(level.pills, Pill.ELEMENTSIZE)),
                 camCollisionPointer = SeekWrite(fs, level.unk17),
-                pointLightPointer = SeekWrite(fs, SerializeLevelObjects(level.pointLights, PointLight.GetElementSize(GameType.RaC2)), 0x04),
+                pointLightPointer = SeekWrite(fs, SerializeLevelObjects(level.pointLights, PointLight.GetElementSize(GameType.RaC2)).Concat(new byte[2048]).ToArray()), // The game appends 2048 padding bytes!
                 grindPathsPointer = SeekWrite(fs, GetGrindPathsBytes(level.grindPaths)),
                 areasPointer = SeekWrite(fs, level.areasData),
                 occlusionPointer = SeekWrite(fs, GetOcclusionBytes(level.occlusionData))
@@ -317,7 +317,7 @@ namespace LibReplanetizer.Serializers
 
         public byte[] SerializeLevelObjects<T>(List<T> levelobjects, int elementSize) where T : LevelObject
         {
-            if (levelobjects == null) return new byte[0x10];
+            if (levelobjects == null) return [];
 
             byte[] bytes = new byte[0x10 + levelobjects.Count * elementSize];
 

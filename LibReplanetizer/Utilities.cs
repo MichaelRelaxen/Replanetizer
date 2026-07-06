@@ -30,7 +30,6 @@ namespace LibReplanetizer
             {
                 var stackTrace = new StackTrace();
                 Debug.WriteLine($"Assertion failed: {message}");
-                Debug.WriteLine("at:");
                 Debug.WriteLine(stackTrace.ToString());
             }
         }

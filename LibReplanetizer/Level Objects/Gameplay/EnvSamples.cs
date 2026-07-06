@@ -50,6 +50,7 @@ namespace LibReplanetizer.LevelObjects
         [Category("Attributes"), DisplayName("Fog Far Distance")]
         public float fogFarDist { get; set; }
         public int unk0x2C { get; set; }
+        public short unk0x1E { get; set; }
 
         public EnvSample(GameType game, byte[] block, int num)
         {
@@ -137,6 +138,7 @@ namespace LibReplanetizer.LevelObjects
             byte fogB = block[offset + 0x19];
             short fogND = ReadShort(block, offset + 0x1A);
             short fogFD = ReadShort(block, offset + 0x1C);
+            unk0x1E = ReadShort(block, offset + 0x1E);
 
             position = new Vector3(posX * 0.25f, posY * 0.25f, posZ * 0.25f);
             heroColor = Color.FromRgb((byte) heroR, (byte) heroG, (byte) heroB).ToPixel<Rgb24>();
@@ -223,7 +225,7 @@ namespace LibReplanetizer.LevelObjects
             bytes[0x19] = (byte) fogColor.B;
             WriteShort(bytes, 0x1A, (short) fogNearDist);
             WriteShort(bytes, 0x1C, (short) fogFarDist);
-            WriteShort(bytes, 0x1E, 0);
+            WriteShort(bytes, 0x1E, unk0x1E);
 
             return bytes;
         }

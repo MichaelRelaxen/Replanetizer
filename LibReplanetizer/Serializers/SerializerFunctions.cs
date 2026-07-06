@@ -27,9 +27,10 @@ namespace LibReplanetizer.Serializers
 
         public static void SeekPast(FileStream fs, int alignment)
         {
-            while (fs.Position % alignment != 0)
+            long alignmentError = fs.Position % alignment;
+            if (alignmentError != 0)
             {
-                fs.Seek(2, SeekOrigin.Current);
+                fs.Seek(alignment - alignmentError, SeekOrigin.Current);
             }
         }
 

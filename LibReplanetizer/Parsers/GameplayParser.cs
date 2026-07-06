@@ -51,7 +51,7 @@ namespace LibReplanetizer.Parsers
 
         public LevelVariables GetLevelVariables()
         {
-            return new LevelVariables(game, fileStream, gameplayHeader.levelVarPointer, gameplayHeader.englishPointer - gameplayHeader.levelVarPointer);
+            return new LevelVariables(game, fileStream, gameplayHeader.levelVarPointer);
         }
 
         public List<LanguageData> GetLang(int offset)
@@ -158,7 +158,13 @@ namespace LibReplanetizer.Parsers
             var cameraList = new List<GameCamera>();
             if (gameplayHeader.cameraPointer == 0) { return cameraList; }
 
-            int cameraCount = ReadInt(ReadBlock(fileStream, gameplayHeader.cameraPointer, 4), 0);
+            byte[] headerBytes = ReadBlock(fileStream, gameplayHeader.cameraPointer, 0x10);
+
+            int cameraCount = ReadInt(headerBytes, 0x00);
+            Utilities.DebugAssert(ReadInt(headerBytes, 0x04) == 0, "Header[0x04] is not 0!");
+            Utilities.DebugAssert(ReadInt(headerBytes, 0x08) == 0, "Header[0x04] is not 0!");
+            Utilities.DebugAssert(ReadInt(headerBytes, 0x0C) == 0, "Header[0x04] is not 0!");
+
             byte[] cameraBlock = ReadBlock(fileStream, gameplayHeader.cameraPointer + 0x10, GameCamera.ELEMENTSIZE * cameraCount);
             for (int i = 0; i < cameraCount; i++)
             {
@@ -390,10 +396,14 @@ namespace LibReplanetizer.Parsers
             List<PointLight> pointLights = new List<PointLight>();
             if (gameplayHeader.pointLightPointer == 0) { return pointLights; }
 
-            // Pointlights are not used in the PS3 remasters, only RaC 1 contains valid information.
-            if (game != GameType.RaC1) { return pointLights; }
+            // Pointlights are not used in the PS3 remasters, only RaC 1 contains valid information. We parse them anyway!
+            byte[] headBlock = ReadBlock(fileStream, gameplayHeader.pointLightPointer, 0x10);
 
-            int count = ReadInt(ReadBlock(fileStream, gameplayHeader.pointLightPointer, 4), 0);
+            int count = ReadInt(headBlock, 0x00);
+            Utilities.DebugAssert(ReadInt(headBlock, 0x04) == 0, "Header[0x04] is not 0!");
+            Utilities.DebugAssert(ReadInt(headBlock, 0x08) == 0, "Header[0x08] is not 0!");
+            Utilities.DebugAssert(ReadInt(headBlock, 0x0C) == 0, "Header[0x0C] is not 0!");
+
             byte[] pointLightBlock = ReadBlock(fileStream, gameplayHeader.pointLightPointer + 0x10, PointLight.GetElementSize(game) * count);
             for (int i = 0; i < count; i++)
             {
@@ -546,8 +556,12 @@ namespace LibReplanetizer.Parsers
 
         public byte[] GetAreasData()
         {
-            if (gameplayHeader.areasPointer == 0) { return new byte[0]; }
-            return ReadBlock(fileStream, gameplayHeader.areasPointer, gameplayHeader.occlusionPointer - gameplayHeader.areasPointer);
+            if (gameplayHeader.areasPointer == 0) { return []; }
+
+            // We might not have any occlusion in the level, in that case this is the last section.
+            int endPointer = (gameplayHeader.occlusionPointer != 0) ? gameplayHeader.occlusionPointer : (int) fileStream.Length;
+
+            return ReadBlock(fileStream, gameplayHeader.areasPointer, endPointer - gameplayHeader.areasPointer);
         }
 
         public List<byte[]> GetPvars()
