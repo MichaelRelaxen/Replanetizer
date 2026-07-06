@@ -404,7 +404,8 @@ namespace LibReplanetizer.SerializationDiffTool
         private enum FileStatus
         {
             Ok,
-            Diff,
+            ByteDiff,
+            LengthDiff,
             Missing,
             Extra
         }
@@ -481,7 +482,7 @@ namespace LibReplanetizer.SerializationDiffTool
 
                 if (!sourceBytes.SequenceEqual(outputBytes))
                 {
-                    result.Status = FileStatus.Diff;
+                    result.Status = (sourceBytes.Length != outputBytes.Length) ? FileStatus.LengthDiff : FileStatus.ByteDiff;
                     int diffCount = 0;
                     var diffBytes = new List<(long offset, byte source, byte output)>();
                     int compareLength = Math.Min(sourceBytes.Length, outputBytes.Length);
@@ -546,10 +547,11 @@ namespace LibReplanetizer.SerializationDiffTool
 
         private static void GenerateHtmlReport(List<FileDiffResult> results, string htmlPath, string enginePath, string outputDir, string diffDir, int hexBytes)
         {
-            var okFiles = results.Where(r => r.Status == FileStatus.Ok).ToList();
-            var diffFiles = results.Where(r => r.Status == FileStatus.Diff).ToList();
+            List<FileDiffResult> okFiles = results.Where(r => r.Status == FileStatus.Ok).ToList();
+            List<FileDiffResult> byteDiffFiles = results.Where(r => r.Status == FileStatus.ByteDiff).ToList();
+            List<FileDiffResult> lengthDiffFiles = results.Where(r => r.Status == FileStatus.LengthDiff).ToList();
 
-            var sb = new System.Text.StringBuilder();
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
             sb.AppendLine("<!DOCTYPE html>");
             sb.AppendLine("<html lang=\"en\">");
             sb.AppendLine("<head>");
@@ -596,7 +598,8 @@ namespace LibReplanetizer.SerializationDiffTool
     }
     .summary-card.total { background: #3498db; color: white; }
     .summary-card.ok { background: #27ae60; color: white; }
-    .summary-card.diff { background: #e74c3c; color: white; }
+    .summary-card.byte-diff { background: #c4981e; color: white; }
+    .summary-card.length-diff { background: #e74c3c; color: white; }
     .summary-card .number { font-size: 2em; font-weight: bold; }
     .summary-card .label { font-size: 0.9em; opacity: 0.9; }
     .file-list {
@@ -627,6 +630,12 @@ namespace LibReplanetizer.SerializationDiffTool
     }
     .file-header-success:hover {
         background: #afe0ae;
+    }
+    .file-header-length {
+        background: #fff0ce;
+    }
+    .file-header-length:hover {
+        background: #e0d1ae;
     }
     .file-name {
         font-weight: 600;
@@ -771,7 +780,8 @@ namespace LibReplanetizer.SerializationDiffTool
             sb.AppendLine("      <div class=\"summary\">");
             sb.AppendLine($"        <div class=\"summary-card total\"><div class=\"number\">{results.Count}</div><div class=\"label\">Total Files</div></div>");
             sb.AppendLine($"        <div class=\"summary-card ok\"><div class=\"number\">{okFiles.Count}</div><div class=\"label\">Matching</div></div>");
-            sb.AppendLine($"        <div class=\"summary-card diff\"><div class=\"number\">{diffFiles.Count}</div><div class=\"label\">Differences</div></div>");
+            sb.AppendLine($"        <div class=\"summary-card byte-diff\"><div class=\"number\">{byteDiffFiles.Count}</div><div class=\"label\">Matching Length</div></div>");
+            sb.AppendLine($"        <div class=\"summary-card length-diff\"><div class=\"number\">{lengthDiffFiles.Count}</div><div class=\"label\">Differences</div></div>");
             sb.AppendLine("      </div>");
 
             if (results.Any())
@@ -784,6 +794,8 @@ namespace LibReplanetizer.SerializationDiffTool
                     sb.AppendLine("        <li class=\"file-item\">");
                     if (diff.Status == FileStatus.Ok)
                         sb.AppendLine($"          <div class=\"file-header file-header-success\">");
+                    else if (diff.Status == FileStatus.ByteDiff)
+                        sb.AppendLine($"          <div class=\"file-header file-header-length\" onclick=\"this.parentElement.classList.toggle('expanded')\">");
                     else
                         sb.AppendLine($"          <div class=\"file-header\" onclick=\"this.parentElement.classList.toggle('expanded')\">");
                     sb.AppendLine($"            <div><span class=\"file-name\">{HtmlEncode(diff.RelativePath)}</span>");
