@@ -9,6 +9,7 @@ using LibReplanetizer.LevelObjects;
 using LibReplanetizer.Models;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using static LibReplanetizer.DataFunctions;
 
 namespace LibReplanetizer.Serializers
@@ -32,6 +33,18 @@ namespace LibReplanetizer.Serializers
             {
                 fs.Seek(alignment - alignmentError, SeekOrigin.Current);
             }
+        }
+
+        public static void WriteBytesAtOffset(FileStream fs, byte[]? bytes, int offset, int alignment = 0x10)
+        {
+            if (bytes == null || bytes.Length == 0) return;
+
+            long previousPosition = fs.Position;
+
+            fs.Seek(offset, SeekOrigin.Begin);
+            SeekPast(fs, alignment);
+            fs.Write(bytes, 0, bytes.Length);
+            fs.Seek(previousPosition, SeekOrigin.Begin);
         }
 
         public static byte[] WriteTfrags(Terrain terrain, int fileOffset, GameType game)

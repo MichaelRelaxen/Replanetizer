@@ -26,13 +26,13 @@ namespace LibReplanetizer.Parsers
 
         protected List<Model> GetMobyModels(GameType game, int mobyModelPointer)
         {
-            //Get the moby count from the start of the section
-            int mobyModelCount = ReadInt(ReadBlock(fileStream, mobyModelPointer, 4), 0);
+            byte[] headerBlock = ReadBlock(fileStream, mobyModelPointer, 0x04);
+
+            int mobyModelCount = ReadInt(headerBlock, 0x00);
 
             List<Model> mobyModels = new List<Model>(mobyModelCount);
 
-            //Each moby is stored as a [MobyID, offset] pair
-            byte[] mobyIDBlock = ReadBlock(fileStream, mobyModelPointer + 4, mobyModelCount * 8);
+            byte[] mobyIDBlock = ReadBlock(fileStream, mobyModelPointer + 4, mobyModelCount * 0x08);
             for (int i = 0; i < mobyModelCount; i++)
             {
                 int mobyIDOffset = i * 0x08;

@@ -34,7 +34,9 @@ namespace LibReplanetizer.Models
 
     public class Collision : Model, IRenderable
     {
-        private bool isEmpty = false;
+        private bool hasStandardCollision = false;
+        private bool hasHeroCollision = false;
+        private bool hasUnkCollision = false;
 
         // Model
 
@@ -348,10 +350,7 @@ namespace LibReplanetizer.Models
         {
             // RaC 1 title screen has no collision
             if (collisionPointer == 0)
-            {
-                isEmpty = true;
                 return;
-            }
 
             byte[] headBlock = ReadBlock(fs, collisionPointer, 0x10);
             int standardCollisionStart = ReadInt(headBlock, 0x00);
@@ -359,13 +358,17 @@ namespace LibReplanetizer.Models
             int unkCollisionStart = ReadInt(headBlock, 0x08);
             Utilities.DebugAssert(ReadInt(headBlock, 0x0C) == 0, "Header[0x0C] is not 0!");
 
-            if (standardCollisionStart > 0)
+            hasStandardCollision = standardCollisionStart > 0;
+            hasHeroCollision = heroCollisionStart > 0;
+            hasUnkCollision = unkCollisionStart > 0;
+
+            if (hasStandardCollision)
                 ParseStandardCollision(fs, collisionPointer + standardCollisionStart);
 
-            if (heroCollisionStart > 0)
+            if (hasHeroCollision)
                 ParseHeroCollision(fs, collisionPointer + heroCollisionStart);
 
-            if (unkCollisionStart > 0)
+            if (hasUnkCollision)
                 ParseUnkCollision(fs, collisionPointer + unkCollisionStart);
 
             var vertexList = new List<float>();
@@ -490,7 +493,7 @@ namespace LibReplanetizer.Models
 
         public byte[] Serialize()
         {
-            if (isEmpty) return [];
+            if (hasStandardCollision == false && hasHeroCollision == false && hasUnkCollision == false) return [];
 
             byte[] standardCollisionBlock = SerializeStandardCollision();
             byte[] heroCollisionBlock = SerializeHeroCollision();
@@ -499,21 +502,21 @@ namespace LibReplanetizer.Models
             int offset = 0x10;
 
             int standardCollisionStart = 0;
-            if (standardCollisionBlock.Length > 0)
+            if (hasStandardCollision)
             {
                 standardCollisionStart = AlignAddressUp(offset);
                 offset = standardCollisionStart + standardCollisionBlock.Length;
             }
 
             int heroCollisionStart = 0;
-            if (heroCollisionBlock.Length > 0)
+            if (hasHeroCollision)
             {
                 heroCollisionStart = AlignAddressUp(offset);
                 offset = heroCollisionStart + heroCollisionBlock.Length;
             }
 
             int unkCollisionStart = 0;
-            if (unkCollisionBlock.Length > 0)
+            if (hasUnkCollision)
             {
                 unkCollisionStart = AlignAddressUp(offset);
                 offset = unkCollisionStart + unkCollisionBlock.Length;
@@ -525,9 +528,14 @@ namespace LibReplanetizer.Models
             WriteInt(bytes, 0x04, heroCollisionStart);
             WriteInt(bytes, 0x08, unkCollisionStart);
 
-            standardCollisionBlock.CopyTo(bytes, standardCollisionStart);
-            heroCollisionBlock.CopyTo(bytes, heroCollisionStart);
-            unkCollisionBlock.CopyTo(bytes, unkCollisionStart);
+            if (hasStandardCollision)
+                standardCollisionBlock.CopyTo(bytes, standardCollisionStart);
+
+            if (hasHeroCollision)
+                heroCollisionBlock.CopyTo(bytes, heroCollisionStart);
+
+            if (hasUnkCollision)
+                unkCollisionBlock.CopyTo(bytes, unkCollisionStart);
 
             return bytes;
         }
@@ -635,9 +643,6 @@ namespace LibReplanetizer.Models
 
         private byte[] SerializeHeroCollision()
         {
-            if (heroCells.Count == 0)
-                return [];
-
             byte[] headerBytes = new byte[heroCells.Count * 0x10];
 
             List<byte[]> cellBytes = new List<byte[]>(heroCells.Count);
@@ -671,9 +676,6 @@ namespace LibReplanetizer.Models
 
         private byte[] SerializeUnkCollision()
         {
-            if (unkCells.Count == 0)
-                return [];
-
             byte[] headerBytes = new byte[unkCells.Count * 0x10];
 
             List<byte[]> cellBytes = new List<byte[]>(unkCells.Count);
