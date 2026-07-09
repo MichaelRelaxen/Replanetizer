@@ -21,7 +21,7 @@ namespace LibReplanetizer.Serializers
 
             directory = Path.Join(directory, "chunk" + chunk + ".ps3");
 
-            ReplanetizerFileStream fs = new ReplanetizerFileStream(directory, FileMode.Create);
+            ReplanetizerFileStream fs = new ReplanetizerFileStream(directory, FileMode.Create, FileAccess.Write);
 
             // Seek past the header
             fs.Seek(0x10, SeekOrigin.Begin);
@@ -29,7 +29,7 @@ namespace LibReplanetizer.Serializers
             ChunkHeader chunkHeader = new ChunkHeader()
             {
                 terrainPointer = SeekWrite(fs, WriteTfrags(level.terrainChunks[chunk], (int) fs.Position, level.game)),
-                collisionPointer = SeekWrite(fs, level.collBytesChunks[chunk])
+                collisionPointer = SeekWrite(fs, level.collisionChunks[chunk].Serialize())
             };
 
             byte[] head = chunkHeader.Serialize();
@@ -38,23 +38,5 @@ namespace LibReplanetizer.Serializers
 
             fs.Close();
         }
-
-        private int SeekWrite(FileStream fs, byte[] bytes)
-        {
-            int pos = (int) fs.Position;
-            fs.Write(bytes, 0, bytes.Length);
-            SeekPast(fs);
-            return pos;
-        }
-
-        private void SeekPast(FileStream fs)
-        {
-            while (fs.Position % 0x10 != 0)
-            {
-                fs.Seek(4, SeekOrigin.Current);
-            }
-        }
-
-
     }
 }

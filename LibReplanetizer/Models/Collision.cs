@@ -9,6 +9,7 @@ using LibReplanetizer.LevelObjects;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using static LibReplanetizer.DataFunctions;
@@ -33,8 +34,6 @@ namespace LibReplanetizer.Models
 
     public class Collision : Model, IRenderable
     {
-        const int HEADSIZE = 0x08;
-
         private bool isEmpty = false;
 
         // Model
@@ -112,6 +111,22 @@ namespace LibReplanetizer.Models
                     }
 
                     entries[f] = entry;
+                }
+
+                // The game sometimes stores just one vertex in a cell, no idea what that is useful for.
+                if (faceCount == 0 && vertexCount > 0)
+                {
+                    vertices = new Vector3[vertexCount];
+
+                    // Vertices
+                    for (int v = 0; v < vertexCount; v++)
+                    {
+                        float xPos = ReadFloat(dataBlock, v * 0x0C + 0x00);
+                        float yPos = ReadFloat(dataBlock, v * 0x0C + 0x04);
+                        float zPos = ReadFloat(dataBlock, v * 0x0C + 0x08);
+
+                        vertices[v] = new Vector3(xPos, yPos, zPos);
+                    }
                 }
             }
 
@@ -204,6 +219,17 @@ namespace LibReplanetizer.Models
                     }
 
                     entries[f] = entry;
+                }
+
+                if (faceCount == 0 && vertexCount > 0)
+                {
+                    // Vertices
+                    for (int v = 0; v < vertexCount; v++)
+                    {
+                        WriteFloat(bytes, 0x04 + v * 0x0C + 0x00, vertices[v].X);
+                        WriteFloat(bytes, 0x04 + v * 0x0C + 0x04, vertices[v].Y);
+                        WriteFloat(bytes, 0x04 + v * 0x0C + 0x08, vertices[v].Z);
+                    }
                 }
 
                 return bytes;
@@ -309,13 +335,14 @@ namespace LibReplanetizer.Models
                     bytes[tOff + 0x02] = indices[t * 3 + 2];
                 }
 
-                dataOffset = AlignAddressUp(dataOffset + bytes.Length);
+                dataOffset += bytes.Length;
 
                 return bytes;
             }
         }
 
         private List<HeroCollisionCell> heroCells = new List<HeroCollisionCell>();
+        private List<HeroCollisionCell> unkCells = new List<HeroCollisionCell>();
 
         public Collision(FileStream fs, int collisionPointer)
         {
@@ -326,15 +353,20 @@ namespace LibReplanetizer.Models
                 return;
             }
 
-            byte[] headBlock = ReadBlock(fs, collisionPointer, HEADSIZE);
+            byte[] headBlock = ReadBlock(fs, collisionPointer, 0x10);
             int standardCollisionStart = ReadInt(headBlock, 0x00);
             int heroCollisionStart = ReadInt(headBlock, 0x04);
+            int unkCollisionStart = ReadInt(headBlock, 0x08);
+            Utilities.DebugAssert(ReadInt(headBlock, 0x0C) == 0, "Header[0x0C] is not 0!");
 
             if (standardCollisionStart > 0)
                 ParseStandardCollision(fs, collisionPointer + standardCollisionStart);
 
             if (heroCollisionStart > 0)
                 ParseHeroCollision(fs, collisionPointer + heroCollisionStart);
+
+            if (unkCollisionStart > 0)
+                ParseUnkCollision(fs, collisionPointer + unkCollisionStart);
 
             var vertexList = new List<float>();
             var indexList = new List<uint>();
@@ -411,6 +443,9 @@ namespace LibReplanetizer.Models
             byte[] headBlock = ReadBlock(fs, baseOffset, 0x10);
 
             int heroCellCount = ReadInt(headBlock, 0x00);
+            Utilities.DebugAssert(ReadInt(headBlock, 0x04) == 0, "Header[0x04] is not 0!");
+            Utilities.DebugAssert(ReadInt(headBlock, 0x08) == 0, "Header[0x08] is not 0!");
+            Utilities.DebugAssert(ReadInt(headBlock, 0x0C) == 0, "Header[0x0C] is not 0!");
 
             heroCells = new List<HeroCollisionCell>(heroCellCount);
 
@@ -418,6 +453,25 @@ namespace LibReplanetizer.Models
 
             for (int i = 0; i < heroCellCount; i++)
                 heroCells.Add(new HeroCollisionCell(fs, baseOffset, i, cellHeaderBlock));
+        }
+
+        private void ParseUnkCollision(FileStream fs, int baseOffset)
+        {
+            byte[] headBlock = ReadBlock(fs, baseOffset, 0x10);
+
+            int unkCount = ReadInt(headBlock, 0x00);
+            Utilities.DebugAssert(ReadInt(headBlock, 0x04) == 0, "Header[0x04] is not 0!");
+            Utilities.DebugAssert(ReadInt(headBlock, 0x08) == 0, "Header[0x08] is not 0!");
+            Utilities.DebugAssert(ReadInt(headBlock, 0x0C) == 0, "Header[0x0C] is not 0!");
+
+            unkCells = new List<HeroCollisionCell>(unkCount);
+
+            byte[] cellHeaderBlock = ReadBlock(fs, baseOffset + 0x10, unkCount * 0x10);
+
+            for (int i = 0; i < unkCount; i++)
+            {
+                unkCells.Add(new HeroCollisionCell(fs, baseOffset, i, cellHeaderBlock));
+            }
         }
 
         private void GenerateModelData(List<float> vertexList, List<uint> indexList, ref uint totalVertexCount)
@@ -440,17 +494,40 @@ namespace LibReplanetizer.Models
 
             byte[] standardCollisionBlock = SerializeStandardCollision();
             byte[] heroCollisionBlock = SerializeHeroCollision();
+            byte[] unkCollisionBlock = SerializeUnkCollision();
 
-            int standardCollisionStart = AlignAddressUp(HEADSIZE);
-            int heroCollisionStart = AlignAddressUp(standardCollisionStart + standardCollisionBlock.Length);
+            int offset = 0x10;
 
-            byte[] bytes = new byte[heroCollisionStart + heroCollisionBlock.Length];
+            int standardCollisionStart = 0;
+            if (standardCollisionBlock.Length > 0)
+            {
+                standardCollisionStart = AlignAddressUp(offset);
+                offset = standardCollisionStart + standardCollisionBlock.Length;
+            }
+
+            int heroCollisionStart = 0;
+            if (heroCollisionBlock.Length > 0)
+            {
+                heroCollisionStart = AlignAddressUp(offset);
+                offset = heroCollisionStart + heroCollisionBlock.Length;
+            }
+
+            int unkCollisionStart = 0;
+            if (unkCollisionBlock.Length > 0)
+            {
+                unkCollisionStart = AlignAddressUp(offset);
+                offset = unkCollisionStart + unkCollisionBlock.Length;
+            }
+
+            byte[] bytes = new byte[offset];
 
             WriteInt(bytes, 0x00, standardCollisionStart);
             WriteInt(bytes, 0x04, heroCollisionStart);
+            WriteInt(bytes, 0x08, unkCollisionStart);
 
             standardCollisionBlock.CopyTo(bytes, standardCollisionStart);
             heroCollisionBlock.CopyTo(bytes, heroCollisionStart);
+            unkCollisionBlock.CopyTo(bytes, unkCollisionStart);
 
             return bytes;
         }
@@ -479,7 +556,8 @@ namespace LibReplanetizer.Models
                     {
                         if (cellBytes.TryGetValue((z, y, x), out byte[]? cellEntryBytes))
                         {
-                            totalSize = AlignAddressUp(totalSize + cellEntryBytes.Length, 0x04);
+                            totalSize = AlignAddressUp(totalSize, 0x04);
+                            totalSize += cellEntryBytes.Length;
                         }
                     }
                 }
@@ -534,9 +612,10 @@ namespace LibReplanetizer.Models
                     {
                         if (cellBytes.TryGetValue((z, y, x), out byte[]? cellData))
                         {
+                            cellDataOffset = AlignAddressUp(cellDataOffset, 0x04);
                             WriteInt(bytes, xBlockOffset + x * 0x04, cellDataOffset);
                             Buffer.BlockCopy(cellData, 0, bytes, cellDataOffset, cellData.Length);
-                            cellDataOffset = AlignAddressUp(cellDataOffset + cellData.Length, 0x04);
+                            cellDataOffset += cellData.Length;
                         }
                         else
                         {
@@ -544,6 +623,7 @@ namespace LibReplanetizer.Models
                         }
                     }
 
+                    cellDataOffset = AlignAddressUp(cellDataOffset, 0x04);
                     xDataOffset = cellDataOffset;
                 }
 
@@ -555,6 +635,9 @@ namespace LibReplanetizer.Models
 
         private byte[] SerializeHeroCollision()
         {
+            if (heroCells.Count == 0)
+                return [];
+
             byte[] headerBytes = new byte[heroCells.Count * 0x10];
 
             List<byte[]> cellBytes = new List<byte[]>(heroCells.Count);
@@ -563,6 +646,7 @@ namespace LibReplanetizer.Models
 
             for (int i = 0; i < heroCells.Count; i++)
             {
+                dataOffset = AlignAddressUp(dataOffset);
                 cellBytes.Add(heroCells[i].Serialize(i, headerBytes, ref dataOffset));
             }
 
@@ -577,8 +661,45 @@ namespace LibReplanetizer.Models
 
             for (int i = 0; i < heroCells.Count; i++)
             {
+                offset = AlignAddressUp(offset);
                 cellBytes[i].CopyTo(bytes, offset);
-                offset = AlignAddressUp(offset + cellBytes[i].Length);
+                offset += cellBytes[i].Length;
+            }
+
+            return bytes;
+        }
+
+        private byte[] SerializeUnkCollision()
+        {
+            if (unkCells.Count == 0)
+                return [];
+
+            byte[] headerBytes = new byte[unkCells.Count * 0x10];
+
+            List<byte[]> cellBytes = new List<byte[]>(unkCells.Count);
+
+            int dataOffset = 0x10 + headerBytes.Length;
+
+            for (int i = 0; i < unkCells.Count; i++)
+            {
+                dataOffset = AlignAddressUp(dataOffset);
+                cellBytes.Add(unkCells[i].Serialize(i, headerBytes, ref dataOffset));
+            }
+
+            byte[] bytes = new byte[dataOffset];
+
+            WriteInt(bytes, 0x00, unkCells.Count);
+
+            int offset = 0x10;
+            headerBytes.CopyTo(bytes, offset);
+
+            offset += headerBytes.Length;
+
+            for (int i = 0; i < unkCells.Count; i++)
+            {
+                offset = AlignAddressUp(offset);
+                cellBytes[i].CopyTo(bytes, offset);
+                offset += cellBytes[i].Length;
             }
 
             return bytes;

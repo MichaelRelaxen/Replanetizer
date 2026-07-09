@@ -44,7 +44,6 @@ namespace LibReplanetizer
         public SkyboxModel skybox;
 
         public byte[] renderDefBytes;
-        public List<byte[]> collBytesChunks;
         public byte[] billboardBytes;
         public byte[] soundConfigBytes;
 
@@ -278,7 +277,6 @@ namespace LibReplanetizer
 
             terrainChunks = new List<Terrain>();
             collisionChunks = new List<Collision>();
-            collBytesChunks = new List<byte[]>();
 
             for (int i = 0; i < 5; i++)
             {
@@ -289,7 +287,6 @@ namespace LibReplanetizer
                 {
                     terrainChunks.Add(chunkParser.GetTerrainModels());
                     collisionChunks.Add(chunkParser.GetCollisionModel());
-                    collBytesChunks.Add(chunkParser.GetCollBytes());
                 }
             }
 
