@@ -229,6 +229,7 @@ namespace LibReplanetizer
             return data;
         }
 
+        [Obsolete]
         public static int GetLength(int length, int alignment = 0)
         {
             while (length % 0x10 != alignment)
@@ -238,6 +239,7 @@ namespace LibReplanetizer
             return length;
         }
 
+        [Obsolete]
         // vertexbuffers are often aligned to the nearest 0x80 in the file
         public static int DistToFile80(int length, int alignment = 0)
         {
@@ -250,15 +252,7 @@ namespace LibReplanetizer
             return added;
         }
 
-        public static int GetLength20(int length, int alignment = 0)
-        {
-            while (length % 0x20 != alignment)
-            {
-                length++;
-            }
-            return length;
-        }
-
+        [Obsolete]
         public static int GetLength40(int length, int alignment = 0)
         {
             while (length % 0x40 != alignment)
@@ -268,15 +262,7 @@ namespace LibReplanetizer
             return length;
         }
 
-        public static int GetLength100(int length)
-        {
-            while (length % 0x100 != 0)
-            {
-                length++;
-            }
-            return length;
-        }
-
+        [Obsolete]
         public static void Pad(List<byte> arr)
         {
             while (arr.Count % 0x10 != 0)
@@ -293,6 +279,11 @@ namespace LibReplanetizer
         public static int AlignAddressDown(int offset, int alignment = 0x10)
         {
             return offset - offset % alignment;
+        }
+
+        public static int GetRelativeOffset(int offset, int baseOffset)
+        {
+            return (offset > 0) ? offset - baseOffset : offset;
         }
     }
 }

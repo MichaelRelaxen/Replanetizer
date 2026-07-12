@@ -350,7 +350,7 @@ namespace LibReplanetizer.Models.Animations
             WriteUshort(header, 0x0C, translationPointer);
             WriteUshort(header, 0x0E, (ushort) translations.Count);
 
-            byte[] outBytes = new byte[GetLength(0x10 + rotationBytes.Length + sec0Bytes.Length + translationBytes.Length)];
+            byte[] outBytes = new byte[0x10 + rotationBytes.Length + sec0Bytes.Length + translationBytes.Length];
             header.CopyTo(outBytes, 0);
             rotationBytes.CopyTo(outBytes, 0x10);
             sec0Bytes.CopyTo(outBytes, 0x10 + rotationBytes.Length);

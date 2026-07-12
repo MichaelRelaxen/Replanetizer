@@ -10,6 +10,7 @@ using LibReplanetizer.Models.Animations;
 using System.Collections.Generic;
 using System.IO;
 using static LibReplanetizer.DataFunctions;
+using static LibReplanetizer.Serializers.SerializerFunctions;
 
 namespace LibReplanetizer.Models
 {
@@ -457,242 +458,195 @@ namespace LibReplanetizer.Models
             return model;
         }
 
-        public byte[] Serialize(int offset)
+        public int WriteBytes(FileStream fs)
         {
-            // Sometimes the mobys offset is not 0x10 aligned with the file,
-            // but the internal offsets are supposed to be
-            int alignment = 0x10 - (offset % 0x10);
-            if (alignment == 0x10) alignment = 0;
+            int headerOffset = SeekReserve(fs, HEADERSIZE, 0x01);
+            int animationOffsetsOffset = SeekReserve(fs, 0x04 * animations.Count, 0x01);
 
             // We need to reserve some room for Ratchet's menu animations
             // this is hardcoded as 0x1c in the ELF, thus we have to just check
             // if the id of the current model is 0 I.E Ratchet, and add this offset
-            int stupidOffset = 0;
             if (id == 0)
-            {
-                stupidOffset = 0x20 * 4;
-            }
+                SeekReserve(fs, 0x20 * 4, 0x01);
+            else
+                SeekReserve(fs, 0x20, 0x01);
 
-            byte[] vertexBytes = SerializeVertices();
-            byte[] metalVertexBytes = SerializeMetalVertices();
-            byte[] faceBytes = GetFaceBytes();
-            byte[] metalIndexBytes = SerializeMetalIndices();
+            int meshDataOffset = SeekReserve(fs, (vertexCount > 0) ? 0x20 : 0);
+            int textureConfigOffset = SeekReserve(fs, textureConfig.Count * 0x10, 0x01);
+            int metalTextureConfigOffset = SeekReserve(fs, metalTextureConfig.Count * 0x10, 0x01);
 
-            //sounds
-            byte[] soundBytes = new byte[modelSounds.Count * 0x20];
-            for (int i = 0; i < modelSounds.Count; i++)
-            {
-                byte[] soundByte = modelSounds[i].Serialize();
-                soundByte.CopyTo(soundBytes, i * 0x20);
-            }
+            int vertOffset = SeekWrite(fs, SerializeVertices(), 0x80);
+            int metalVertOffset = SeekWrite(fs, SerializeMetalVertices(), 0x01);
+            int faceOffset = SeekWrite(fs, GetFaceBytes());
+            int metalIndexOffset = SeekWrite(fs, SerializeMetalIndices(), 0x01);
 
-            //boneMatrix
-            byte[] boneMatrixBytes = new byte[boneMatrices.Count * 0x40];
-            for (int i = 0; i < boneMatrices.Count; i++)
-            {
-                byte[] boneMatrixByte = boneMatrices[i].Serialize();
-                boneMatrixByte.CopyTo(boneMatrixBytes, i * 0x40);
-            }
-
-            //boneData
-            byte[] boneDataBytes = new byte[boneDatas.Count * 0x10];
-            for (int i = 0; i < boneDatas.Count; i++)
-            {
-                byte[] boneDataByte = boneDatas[i].Serialize();
-                boneDataByte.CopyTo(boneDataBytes, i * 0x10);
-            }
-
-            int hack = 0;
-            if (id > 2) hack = 0x20;
-            int meshDataOffset = GetLength(HEADERSIZE + animations.Count * 4 + stupidOffset + hack, alignment);
-            int textureConfigOffset = GetLength(meshDataOffset + 0x20, alignment);
-            int metalTextureConfigOffset = GetLength(textureConfigOffset + textureConfig.Count * 0x10, alignment);
-
-            int file80 = 0;
-            if (vertexBuffer.Length != 0)
-                file80 = DistToFile80(offset + metalTextureConfigOffset + metalTextureConfig.Count * 0x10);
-            int vertOffset = GetLength(metalTextureConfigOffset + metalTextureConfig.Count * 0x10 + file80, alignment);
-            int metalVertOffset = vertOffset + vertexBytes.Length;
-            int faceOffset = GetLength(metalVertOffset + metalVertexBytes.Length, alignment);
-            int metalIndexOffset = faceOffset + faceBytes.Length;
-
-            byte[] bangleBytes = [];
             int banglesPointer = 0;
             if (bangles.Count > 0)
             {
                 int maxBangles = 15;
                 int bangleCount = bangles.Count < maxBangles ? bangles.Count : maxBangles;
 
-                banglesPointer = GetLength(metalIndexOffset + metalIndexBytes.Length, alignment);
-                int bangleDataOffset = GetLength(banglesPointer + 0x04 + maxBangles * 0x04, alignment);
-                List<(int Offset, byte[] Data)> serializedBangles = new List<(int Offset, byte[] Data)>();
+                banglesPointer = SeekReserve(fs, 0x04 + maxBangles * 0x04, 0x01);
+
+                byte[] banglesOffsetsBytes = new byte[0x04 + maxBangles * 0x04];
 
                 for (int i = 0; i < bangleCount; i++)
                 {
-                    byte[] bangleData = bangles[i].Serialize(bangleDataOffset, alignment);
-                    serializedBangles.Add((bangleDataOffset, bangleData));
-                    bangleDataOffset = GetLength(bangleDataOffset + bangleData.Length, alignment);
+                    int bangleOffset = bangles[i].WriteBytes(fs);
+                    WriteInt(banglesOffsetsBytes, 0x04 + i * 0x04, bangleOffset);
                 }
 
-                bangleBytes = new byte[(bangleDataOffset - banglesPointer)];
-                for (int i = 0; i < serializedBangles.Count; i++)
-                {
-                    WriteInt(bangleBytes, 0x04 + i * 0x04, serializedBangles[i].Offset);
-                    serializedBangles[i].Data.CopyTo(bangleBytes, serializedBangles[i].Offset - banglesPointer);
-                }
+                WriteBytesAtOffset(fs, banglesOffsetsBytes, banglesPointer);
             }
 
-            int collisionDataOffset = GetLength(metalIndexOffset + metalIndexBytes.Length + bangleBytes.Length, alignment);
-            int collisionDataLength = collisionData != null ? collisionData.GetLength() : 0;
-            int soundOffset = GetLength(collisionDataOffset + collisionDataLength, alignment);
-            int attachmentOffset = GetLength(soundOffset + soundBytes.Length, alignment);
+            int collisionDataOffset = (collisionData != null) ? SeekWrite(fs, collisionData.Serialize()) : 0;
 
-            List<byte> attachmentBytes = new List<byte>();
+            int soundOffset = 0;
+            if (modelSounds.Count > 0)
+            {
+                soundOffset = SeekPast(fs, 0x10);
+                for (int i = 0; i < modelSounds.Count; i++)
+                    SeekWrite(fs, modelSounds[i].Serialize(), 0x01);
+            }
+
+            // Attachments
+            int attachmentOffset = 0;
             if (attachments.Count > 0)
             {
-                byte[] attachmentHead = new byte[4 + attachments.Count * 4];
-                WriteInt(attachmentHead, 0, attachments.Count);
-                int attOffset = attachmentOffset + 4 + attachments.Count * 4;
+                int attachmentHeaderSize = 0x04 + attachments.Count * 0x04;
+
+                attachmentOffset = SeekReserve(fs, attachmentHeaderSize);
+                byte[] attachmentHead = new byte[attachmentHeaderSize];
+
+                WriteInt(attachmentHead, 0x00, attachments.Count);
                 for (int i = 0; i < attachments.Count; i++)
                 {
-                    WriteInt(attachmentHead, 4 + i * 4, attOffset);
-                    byte[] attBytes = attachments[i].Serialize();
-                    attachmentBytes.AddRange(attBytes);
-                    attOffset += attBytes.Length;
+                    int attOffset = SeekWrite(fs, attachments[i].Serialize(), 0x01);
+                    WriteInt(attachmentHead, 0x04 + i * 0x04, GetRelativeOffset(attOffset, headerOffset));
                 }
-                attachmentBytes.InsertRange(0, attachmentHead);
+
+                WriteBytesAtOffset(fs, attachmentHead, attachmentOffset);
             }
             else if (indexAttachments.Count > 0)
             {
-                attachmentBytes.AddRange([0, 0, 0, 0]);
-                attachmentBytes.AddRange(indexAttachments);
-                attachmentBytes.Add(0xff);
+                int attachmentSize = 0x04 + indexAttachments.Count + 0x01;
+                byte[] attachmentBytes = new byte[attachmentSize];
+
+                WriteInt(attachmentBytes, 0x00, 0);
+                indexAttachments.CopyTo(attachmentBytes, 0x04);
+                attachmentBytes[attachmentSize - 1] = 0xFF;
+
+                attachmentOffset = SeekWrite(fs, attachmentBytes);
             }
 
-            int boneMatrixOffset = GetLength(attachmentOffset + attachmentBytes.Count, alignment);
-            int boneDataOffset = GetLength(boneMatrixOffset + boneMatrixBytes.Length, alignment);
-            int animationOffset = GetLength(boneDataOffset + boneDataBytes.Length, alignment);
-            int newAnimationOffset = animationOffset;
-            List<byte> animByteList = new List<byte>();
-
-            List<int> animOffsets = new List<int>();
-
-            foreach (Animation anim in animations)
-            {
-                if (anim.frames.Count != 0)
-                {
-                    animOffsets.Add(newAnimationOffset);
-                    byte[] anima = anim.Serialize(newAnimationOffset, offset);
-                    animByteList.AddRange(anima);
-                    newAnimationOffset += anima.Length;
-                }
-                else
-                {
-                    animOffsets.Add(0);
-                }
-            }
-
-            int modelLength = newAnimationOffset;
-            byte[] outbytes = new byte[modelLength];
-
-
-            // Header
-            if (vertexBuffer.Length != 0)
-                WriteInt(outbytes, 0x00, meshDataOffset);
-
-            outbytes[0x08] = boneCount;
-            outbytes[0x09] = lpBoneCount;
-            outbytes[0x0A] = count3;
-            outbytes[0x0B] = count4;
-            outbytes[0x0C] = (byte) animations.Count;
-            outbytes[0x0D] = (byte) modelSounds.Count;
-            outbytes[0x0E] = lpRenderDist;
-            outbytes[0x0F] = count8;
-
-            if (collisionData != null)
-                WriteInt(outbytes, 0x10, collisionDataOffset);
-
+            int boneMatrixOffset = 0;
             if (id != 1 && id != 2)
             {
-                WriteInt(outbytes, 0x14, boneMatrixOffset);
-                WriteInt(outbytes, 0x18, boneDataOffset);
+                boneMatrixOffset = SeekPast(fs, 0x10);
+                for (int i = 0; i < boneMatrices.Count; i++)
+                    SeekWrite(fs, boneMatrices[i].Serialize(), 0x01);
             }
 
-            if (attachments.Count != 0 || indexAttachments.Count != 0)
-                WriteInt(outbytes, 0x1C, attachmentOffset);
+            int boneDataOffset = 0;
+            if (id != 1 && id != 2)
+            {
+                boneDataOffset = SeekPast(fs, 0x10);
+                for (int i = 0; i < boneDatas.Count; i++)
+                    SeekWrite(fs, boneDatas[i].Serialize(), 0x01);
+            }
+            else
+            {
+                SeekPast(fs, 0x08);
+            }
 
+            // Header
+            byte[] headerBytes = new byte[HEADERSIZE];
+            WriteInt(headerBytes, 0x00, GetRelativeOffset(meshDataOffset, headerOffset));
 
-            //null
-            WriteFloat(outbytes, 0x24, size);
-            if (modelSounds.Count != 0)
-                WriteInt(outbytes, 0x28, soundOffset);
+            headerBytes[0x08] = boneCount;
+            headerBytes[0x09] = lpBoneCount;
+            headerBytes[0x0A] = count3;
+            headerBytes[0x0B] = count4;
+            headerBytes[0x0C] = (byte) animations.Count;
+            headerBytes[0x0D] = (byte) modelSounds.Count;
+            headerBytes[0x0E] = lpRenderDist;
+            headerBytes[0x0F] = count8;
 
-            if (banglesPointer != 0)
-                WriteUshort(outbytes, 0x2C, (ushort) (banglesPointer / 0x10));
+            WriteInt(headerBytes, 0x10, GetRelativeOffset(collisionDataOffset, headerOffset));
+            WriteInt(headerBytes, 0x14, GetRelativeOffset(boneMatrixOffset, headerOffset));
+            WriteInt(headerBytes, 0x18, GetRelativeOffset(boneDataOffset, headerOffset));
+            WriteInt(headerBytes, 0x1C, GetRelativeOffset(attachmentOffset, headerOffset));
+
+            WriteFloat(headerBytes, 0x24, size);
+            WriteInt(headerBytes, 0x28, GetRelativeOffset(soundOffset, headerOffset));
+            WriteUshort(headerBytes, 0x2C, (ushort) (banglesPointer / 0x10));
 
             // TODO: Serialize corncobs
 
-            WriteFloat(outbytes, 0x30, cullingX);
-            WriteFloat(outbytes, 0x34, cullingY);
-            WriteFloat(outbytes, 0x38, cullingZ);
-            WriteFloat(outbytes, 0x3C, cullingRadius);
+            WriteFloat(headerBytes, 0x30, cullingX);
+            WriteFloat(headerBytes, 0x34, cullingY);
+            WriteFloat(headerBytes, 0x38, cullingZ);
+            WriteFloat(headerBytes, 0x3C, cullingRadius);
 
-            WriteUint(outbytes, 0x40, color2);
-            WriteUint(outbytes, 0x44, unk6);
+            WriteUint(headerBytes, 0x40, color2);
+            WriteUint(headerBytes, 0x44, unk6);
 
-            for (int i = 0; i < animations.Count; i++)
+            WriteBytesAtOffset(fs, headerBytes, headerOffset);
+
+            // Mesh Header
+            if (meshDataOffset > 0)
             {
-                WriteInt(outbytes, HEADERSIZE + i * 0x04, animOffsets[i]);
+                byte[] meshDataBytes = new byte[0x20];
+                WriteInt(meshDataBytes, 0x00, textureConfig.Count);
+                WriteInt(meshDataBytes, 0x04, metalTextureConfig.Count);
+                WriteInt(meshDataBytes, 0x08, GetRelativeOffset(textureConfigOffset, headerOffset));
+                WriteInt(meshDataBytes, 0x0c, GetRelativeOffset(metalTextureConfigOffset, headerOffset));
+                WriteInt(meshDataBytes, 0x10, GetRelativeOffset(vertOffset, headerOffset));
+                WriteInt(meshDataBytes, 0x14, GetRelativeOffset(faceOffset, headerOffset));
+                WriteShort(meshDataBytes, 0x18, (short) vertexCount);
+                WriteShort(meshDataBytes, 0x1a, (short) metalVertexCount);
+                WriteShort(meshDataBytes, 0x1C, (short) vertexCount2);
+
+                WriteBytesAtOffset(fs, meshDataBytes, meshDataOffset);
             }
 
-            vertexBytes.CopyTo(outbytes, vertOffset);
-            metalVertexBytes.CopyTo(outbytes, metalVertOffset);
-            faceBytes.CopyTo(outbytes, faceOffset);
-            metalIndexBytes.CopyTo(outbytes, metalIndexOffset);
-            bangleBytes.CopyTo(outbytes, banglesPointer);
-
-            if (collisionData != null)
-                collisionData.Serialize().CopyTo(outbytes, collisionDataOffset);
-
-            soundBytes.CopyTo(outbytes, soundOffset);
-            attachmentBytes.CopyTo(outbytes, attachmentOffset);
-            boneMatrixBytes.CopyTo(outbytes, boneMatrixOffset);
-            boneDataBytes.CopyTo(outbytes, boneDataOffset);
-            animByteList.CopyTo(outbytes, animationOffset);
-
-
-            // Mesh header
-            WriteInt(outbytes, meshDataOffset + 0x00, textureConfig.Count);
-            WriteInt(outbytes, meshDataOffset + 0x04, metalTextureConfig.Count);
-            if (textureConfig.Count != 0)
-                WriteInt(outbytes, meshDataOffset + 0x08, textureConfigOffset);
-            if (metalTextureConfig.Count != 0)
-                WriteInt(outbytes, meshDataOffset + 0x0c, metalTextureConfigOffset);
-            if (vertexBuffer.Length != 0)
-                WriteInt(outbytes, meshDataOffset + 0x10, vertOffset);
-            if (faceBytes.Length != 0)
-                WriteInt(outbytes, meshDataOffset + 0x14, faceOffset);
-            WriteShort(outbytes, meshDataOffset + 0x18, (short) (vertexBytes.Length / VERTELEMENTSIZE));
-            WriteShort(outbytes, meshDataOffset + 0x1a, (short) (metalVertexBytes.Length / METALVERTELEMENTSIZE));
-            WriteShort(outbytes, meshDataOffset + 0x1C, (short) (vertexCount2));
-
+            // Texture Configs
+            byte[] textureConfigBytes = new byte[textureConfig.Count * 0x10];
             for (int i = 0; i < textureConfig.Count; i++)
             {
-                WriteInt(outbytes, textureConfigOffset + i * 0x10 + 0x00, textureConfig[i].id);
-                WriteInt(outbytes, textureConfigOffset + i * 0x10 + 0x04, textureConfig[i].start);
-                WriteInt(outbytes, textureConfigOffset + i * 0x10 + 0x08, textureConfig[i].size);
-                WriteInt(outbytes, textureConfigOffset + i * 0x10 + 0x0C, textureConfig[i].mode);
+                WriteInt(textureConfigBytes, i * 0x10 + 0x00, textureConfig[i].id);
+                WriteInt(textureConfigBytes, i * 0x10 + 0x04, textureConfig[i].start);
+                WriteInt(textureConfigBytes, i * 0x10 + 0x08, textureConfig[i].size);
+                WriteInt(textureConfigBytes, i * 0x10 + 0x0C, textureConfig[i].mode);
             }
 
+            WriteBytesAtOffset(fs, textureConfigBytes, textureConfigOffset);
+
+            // Metal Texture Configs
+            byte[] metalTextureConfigBytes = new byte[metalTextureConfig.Count * 0x10];
             for (int i = 0; i < metalTextureConfig.Count; i++)
             {
-                WriteInt(outbytes, metalTextureConfigOffset + i * 0x10 + 0x00, metalTextureConfig[i].id);
-                WriteInt(outbytes, metalTextureConfigOffset + i * 0x10 + 0x04, metalTextureConfig[i].start);
-                WriteInt(outbytes, metalTextureConfigOffset + i * 0x10 + 0x08, metalTextureConfig[i].size);
-                WriteInt(outbytes, metalTextureConfigOffset + i * 0x10 + 0x0C, metalTextureConfig[i].mode);
+                WriteInt(metalTextureConfigBytes, i * 0x10 + 0x00, metalTextureConfig[i].id);
+                WriteInt(metalTextureConfigBytes, i * 0x10 + 0x04, metalTextureConfig[i].start);
+                WriteInt(metalTextureConfigBytes, i * 0x10 + 0x08, metalTextureConfig[i].size);
+                WriteInt(metalTextureConfigBytes, i * 0x10 + 0x0C, metalTextureConfig[i].mode);
             }
 
-            return outbytes;
+            WriteBytesAtOffset(fs, metalTextureConfigBytes, metalTextureConfigOffset);
+
+            // AnimationOffsets
+            byte[] animationOffsetsBytes = new byte[0x04 * animations.Count];
+            for (int i = 0; i < animations.Count; i++)
+            {
+                int animOffset = animations[i].WriteBytes(fs, headerOffset);
+                WriteInt(animationOffsetsBytes, i * 0x04, GetRelativeOffset(animOffset, headerOffset));
+            }
+
+            WriteBytesAtOffset(fs, animationOffsetsBytes, animationOffsetsOffset);
+
+            SeekPast(fs, 0x10);
+
+            return headerOffset;
         }
     }
 }

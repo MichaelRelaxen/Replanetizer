@@ -26,23 +26,34 @@ namespace LibReplanetizer.Serializers
             return pos;
         }
 
-        public static void SeekPast(FileStream fs, int alignment)
+        public static int SeekReserve(FileStream fs, int length, int alignment = 0x10)
+        {
+            if (length == 0)
+                return 0;
+
+            SeekPast(fs, alignment);
+            int pos = (int) fs.Position;
+            fs.Seek(length, SeekOrigin.Current);
+            return pos;
+        }
+
+        public static int SeekPast(FileStream fs, int alignment)
         {
             long alignmentError = fs.Position % alignment;
             if (alignmentError != 0)
             {
                 fs.Seek(alignment - alignmentError, SeekOrigin.Current);
             }
+            return (int) fs.Position;
         }
 
-        public static void WriteBytesAtOffset(FileStream fs, byte[]? bytes, int offset, int alignment = 0x10)
+        public static void WriteBytesAtOffset(FileStream fs, byte[]? bytes, int offset)
         {
             if (bytes == null || bytes.Length == 0) return;
 
             long previousPosition = fs.Position;
 
             fs.Seek(offset, SeekOrigin.Begin);
-            SeekPast(fs, alignment);
             fs.Write(bytes, 0, bytes.Length);
             fs.Seek(previousPosition, SeekOrigin.Begin);
         }

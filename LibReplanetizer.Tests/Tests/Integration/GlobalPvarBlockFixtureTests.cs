@@ -25,7 +25,8 @@ namespace LibReplanetizer.Tests.Integration
         {
             Skip.If(GameplayFile == null, SkipMsg);
             using var parser = new GameplayParser(GameType.RaC1, GameplayFile!);
-            Assert.NotNull(parser.GetPvarBlocks());
+            int padding = 0;
+            Assert.NotNull(parser.GetPvarBlocks(ref padding));
         }
 
         [SkippableFact]
@@ -33,7 +34,8 @@ namespace LibReplanetizer.Tests.Integration
         {
             Skip.If(GameplayFile == null, SkipMsg);
             using var parser = new GameplayParser(GameType.RaC1, GameplayFile!);
-            foreach (var block in parser.GetPvarBlocks())
+            int padding = 0;
+            foreach (var block in parser.GetPvarBlocks(ref padding))
                 Assert.Equal(GlobalPvarBlock.ELEMENTSIZE, block.ToByteArray().Length);
         }
 
@@ -42,7 +44,8 @@ namespace LibReplanetizer.Tests.Integration
         {
             Skip.If(GameplayFile == null, SkipMsg);
             using var parser = new GameplayParser(GameType.RaC1, GameplayFile!);
-            foreach (var block in parser.GetPvarBlocks())
+            int padding = 0;
+            foreach (var block in parser.GetPvarBlocks(ref padding))
             {
                 byte[] bytes = block.ToByteArray();
                 Assert.Equal(block.off00, DataFunctions.ReadUshort(bytes, 0x00));
@@ -54,7 +57,8 @@ namespace LibReplanetizer.Tests.Integration
         {
             Skip.If(GameplayFile == null, SkipMsg);
             using var parser = new GameplayParser(GameType.RaC1, GameplayFile!);
-            foreach (var block in parser.GetPvarBlocks())
+            int padding = 0;
+            foreach (var block in parser.GetPvarBlocks(ref padding))
             {
                 byte[] bytes = block.ToByteArray();
                 Assert.Equal(block.off06, DataFunctions.ReadUshort(bytes, 0x06));

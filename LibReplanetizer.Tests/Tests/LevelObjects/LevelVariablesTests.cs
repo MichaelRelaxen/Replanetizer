@@ -24,7 +24,7 @@ namespace LibReplanetizer.Tests.LevelObjects
             // Passing levelVarPointer=0 causes the constructor to return early.
             using var ms = new MemoryStream();
             using var fs = new FileStream(Path.GetTempFileName(), FileMode.Create, FileAccess.ReadWrite, FileShare.None, 1, FileOptions.DeleteOnClose);
-            return new LevelVariables(GameType.RaC1, fs, 0, 0);
+            return new LevelVariables(GameType.RaC1, fs, 0);
         }
 
         [Fact]

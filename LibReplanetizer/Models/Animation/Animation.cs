@@ -8,6 +8,7 @@
 using System.Collections.Generic;
 using System.IO;
 using static LibReplanetizer.DataFunctions;
+using static LibReplanetizer.Serializers.SerializerFunctions;
 
 namespace LibReplanetizer.Models.Animations
 {
@@ -140,63 +141,61 @@ namespace LibReplanetizer.Models.Animations
             speed = 0.5f;
         }
 
-        public byte[] Serialize(int baseOffset = 0, int fileOffset = 0)
+        public int WriteBytes(FileStream fs, int mobyHeaderOffset)
         {
+            if (frames.Count == 0)
+                return 0;
+
             // Head
-            byte[] head = new byte[0x1C];
-            WriteFloat(head, 0x00, unk1);
-            WriteFloat(head, 0x04, unk2);
-            WriteFloat(head, 0x08, unk3);
-            WriteFloat(head, 0x0C, unk4);
-            head[0x10] = (byte) frames.Count;
-            head[0x11] = unk5;
-            head[0x12] = (byte) sounds.Count;
-            head[0x13] = unk7;
-            WriteUint(head, 0x14, null1);
-            WriteFloat(head, 0x18, speed);
+            byte[] headBytes = new byte[0x1C];
+
+            WriteFloat(headBytes, 0x00, unk1);
+            WriteFloat(headBytes, 0x04, unk2);
+            WriteFloat(headBytes, 0x08, unk3);
+            WriteFloat(headBytes, 0x0C, unk4);
+            headBytes[0x10] = (byte) frames.Count;
+            headBytes[0x11] = unk5;
+            headBytes[0x12] = (byte) sounds.Count;
+            headBytes[0x13] = unk7;
+            WriteUint(headBytes, 0x14, null1);
+            WriteFloat(headBytes, 0x18, speed);
+
+            int headerOffset = SeekWrite(fs, headBytes);
+
+            if (mobyHeaderOffset == 0)
+                mobyHeaderOffset = headerOffset;
+
+            int frameOffsetsOffset = SeekReserve(fs, frames.Count * 0x04, 0x01);
 
             // Sound configs
             byte[] soundBytes = new byte[sounds.Count * 4];
             for (int i = 0; i < sounds.Count; i++)
             {
-                WriteInt(soundBytes, i * 4, sounds[i]);
+                WriteInt(soundBytes, i * 0x04, sounds[i]);
             }
+
+            SeekWrite(fs, soundBytes, 0x01);
+
+            SeekPast(fs, 0x20);
+            SeekWrite(fs, unknownBytes.ToArray(), 0x01);
 
             // Frames
-            int framesSize = 0;
-            var frameBytes = new List<byte[]>();
-            foreach (Frame frame in frames)
+            List<int> frameOffsets = new List<int>(frames.Count);
+            for (int i = 0; i < frames.Count; i++)
             {
-                byte[] frameByte = frame.Serialize();
-                frameBytes.Add(frameByte);
-                framesSize += frameByte.Length;
+                frameOffsets.Add(SeekWrite(fs, frames[i].Serialize()));
             }
 
-            // The end of the list needs to be aligned to 0x20
-            int offs;
-            if ((fileOffset + baseOffset) % 0x20 == 0)
+            byte[] frameOffsetsBytes = new byte[frames.Count * 0x04];
+
+            for (int i = 0; i < frames.Count; i++)
             {
-                offs = GetLength20(0x1C + frames.Count * 4 + soundBytes.Length);
-            }
-            else
-            {
-                offs = GetLength20(0x1C + frames.Count * 4 + soundBytes.Length + 0x10) - 0x10;
+                WriteInt(frameOffsetsBytes, i * 0x04, GetRelativeOffset(frameOffsets[i], mobyHeaderOffset));
             }
 
-            // Make out array and copy to it
-            byte[] outBytes = new byte[offs + framesSize + unknownBytes.Count];
-            head.CopyTo(outBytes, 0);
-            soundBytes.CopyTo(outBytes, 0x1C + frames.Count * 4);
-            unknownBytes.CopyTo(outBytes, offs);
-            offs += unknownBytes.Count;
-            for (int i = 0; i < frameBytes.Count; i++)
-            {
-                WriteInt(outBytes, 0x1C + i * 4, offs + baseOffset);
-                frameBytes[i].CopyTo(outBytes, offs);
-                offs += frameBytes[i].Length;
-            }
+            WriteBytesAtOffset(fs, frameOffsetsBytes, frameOffsetsOffset);
 
-            return outBytes;
+            return headerOffset;
         }
     }
 }

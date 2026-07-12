@@ -225,12 +225,17 @@ namespace LibReplanetizer.Parsers
         {
             List<Model> gadgetModels = new List<Model>(count);
 
-            //Each moby is stored as a [MobyID, offset] pair
             byte[] mobyIDBlock = ReadBlock(fileStream, gadgetPointer, count * 0x10);
             for (int i = 0; i < count; i++)
             {
-                short modelID = ReadShort(mobyIDBlock, (i * 0x10) + 2);
-                int offset = ReadInt(mobyIDBlock, (i * 0x10) + 4);
+                int modelHeaderOffset = i * 0x10;
+
+                Utilities.DebugAssert(ReadShort(mobyIDBlock, modelHeaderOffset + 0x00) == 0, "Header[0x00] is not 0!");
+                short modelID = ReadShort(mobyIDBlock, modelHeaderOffset + 0x02);
+                int offset = ReadInt(mobyIDBlock, modelHeaderOffset + 0x04);
+                int length = ReadInt(mobyIDBlock, modelHeaderOffset + 0x08);
+                Utilities.DebugAssert(ReadInt(mobyIDBlock, modelHeaderOffset + 0x0C) == 0, "Header[0x0C] is not 0!");
+
                 gadgetModels.Add(new MobyModel(fileStream, game, modelID, offset));
             }
             return gadgetModels;
