@@ -202,6 +202,8 @@ namespace LibReplanetizer.Models
         [Category("Attributes"), DisplayName("Bangles")]
         public List<Bangle> bangles { get; set; } = new List<Bangle>();
 
+        private byte[]? corncobBytes = null;
+
         public Skeleton? skeleton = null;
         [Category("Attributes"), DisplayName("Is Model")]
         public bool isModel { get; set; } = true;
@@ -357,6 +359,11 @@ namespace LibReplanetizer.Models
                 }
             }
 
+            if (corncobPointer > 0)
+            {
+                corncobBytes = ReadBlock(fs, offset + corncobPointer * 0x10, 0x10);
+            }
+
             // Type 10 ( has something to do with collision )
             if (collisionPointer > 0)
             {
@@ -492,8 +499,8 @@ namespace LibReplanetizer.Models
 
                 for (int i = 0; i < bangleCount; i++)
                 {
-                    int bangleOffset = bangles[i].WriteBytes(fs);
-                    WriteInt(banglesOffsetsBytes, 0x04 + i * 0x04, bangleOffset);
+                    int bangleOffset = bangles[i].WriteBytes(fs, headerOffset);
+                    WriteInt(banglesOffsetsBytes, 0x04 + i * 0x04, GetRelativeOffset(bangleOffset, headerOffset));
                 }
 
                 WriteBytesAtOffset(fs, banglesOffsetsBytes, banglesPointer);
@@ -559,6 +566,18 @@ namespace LibReplanetizer.Models
                 SeekPast(fs, 0x08);
             }
 
+            // AnimationOffsets
+            byte[] animationOffsetsBytes = new byte[0x04 * animations.Count];
+            for (int i = 0; i < animations.Count; i++)
+            {
+                int animOffset = animations[i].WriteBytes(fs, headerOffset);
+                WriteInt(animationOffsetsBytes, i * 0x04, GetRelativeOffset(animOffset, headerOffset));
+            }
+
+            WriteBytesAtOffset(fs, animationOffsetsBytes, animationOffsetsOffset);
+
+            int corncobPointer = SeekWrite(fs, corncobBytes);
+
             // Header
             byte[] headerBytes = new byte[HEADERSIZE];
             WriteInt(headerBytes, 0x00, GetRelativeOffset(meshDataOffset, headerOffset));
@@ -579,9 +598,8 @@ namespace LibReplanetizer.Models
 
             WriteFloat(headerBytes, 0x24, size);
             WriteInt(headerBytes, 0x28, GetRelativeOffset(soundOffset, headerOffset));
-            WriteUshort(headerBytes, 0x2C, (ushort) (banglesPointer / 0x10));
-
-            // TODO: Serialize corncobs
+            WriteUshort(headerBytes, 0x2C, (ushort) (GetRelativeOffset(banglesPointer, headerOffset) / 0x10));
+            WriteUshort(headerBytes, 0x2E, (ushort) (GetRelativeOffset(corncobPointer, headerOffset) / 0x10));
 
             WriteFloat(headerBytes, 0x30, cullingX);
             WriteFloat(headerBytes, 0x34, cullingY);
@@ -633,16 +651,6 @@ namespace LibReplanetizer.Models
             }
 
             WriteBytesAtOffset(fs, metalTextureConfigBytes, metalTextureConfigOffset);
-
-            // AnimationOffsets
-            byte[] animationOffsetsBytes = new byte[0x04 * animations.Count];
-            for (int i = 0; i < animations.Count; i++)
-            {
-                int animOffset = animations[i].WriteBytes(fs, headerOffset);
-                WriteInt(animationOffsetsBytes, i * 0x04, GetRelativeOffset(animOffset, headerOffset));
-            }
-
-            WriteBytesAtOffset(fs, animationOffsetsBytes, animationOffsetsOffset);
 
             SeekPast(fs, 0x10);
 

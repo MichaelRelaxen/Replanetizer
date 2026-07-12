@@ -58,8 +58,8 @@ namespace LibReplanetizer.Serializers
                 mobyModelPointer = WriteMobies(fs, level.mobyModels),
                 playerAnimationPointer = WritePlayerAnimations(fs, level.playerAnimations),
                 gadgetPointer = WriteWeapons(fs, level.gadgetModels),
-                tieModelPointer = SeekWrite(fs, WriteTieModels(level.tieModels, (int) fs.Position)),
-                tiePointer = WriteTies(fs, level.ties),
+                tieModelPointer = WriteTieModels(fs, level.tieModels),
+                tiePointer = WriteTies(fs, level.ties, 0x80),
                 shrubModelPointer = SeekWrite(fs, WriteShrubModels(level.shrubModels, (int) fs.Position)),
                 shrubPointer = SeekWrite(fs, WriteShrubs(level.shrubs)),
                 textureConfigMenuPointer = SeekWrite(fs, WriteTextureConfigMenus(level.textureConfigMenus)),
@@ -96,8 +96,8 @@ namespace LibReplanetizer.Serializers
                 terrainPointer = SeekWrite(fs, WriteTfrags(level.terrainEngine, (int) fs.Position, level.game)),
                 renderDefPointer = SeekWrite(fs, level.renderDefBytes),
                 collisionPointer = SeekWrite(fs, level.collisionEngine.Serialize()),
-                tieModelPointer = SeekWrite(fs, WriteTieModels(level.tieModels, (int) fs.Position)),
-                tiePointer = WriteTies(fs, level.ties),
+                tieModelPointer = WriteTieModels(fs, level.tieModels),
+                tiePointer = WriteTies(fs, level.ties, 0x40),
                 shrubModelPointer = SeekWrite(fs, WriteShrubModels(level.shrubModels, (int) fs.Position)),
                 shrubPointer = SeekWrite(fs, WriteShrubs(level.shrubs)),
                 textureConfigMenuPointer = SeekWrite(fs, WriteTextureConfigMenus(level.textureConfigMenus)),
@@ -143,8 +143,8 @@ namespace LibReplanetizer.Serializers
                 shrubModelPointer = SeekWrite(fs, WriteShrubModels(level.shrubModels, (int) fs.Position)),
                 shrubPointer = SeekWrite(fs, WriteShrubs(level.shrubs)),
                 unk5Pointer = SeekWrite(fs, level.unk5),
-                tieModelPointer = SeekWrite(fs, WriteTieModels(level.tieModels, (int) fs.Position)),
-                tiePointer = WriteTies(fs, level.ties),
+                tieModelPointer = WriteTieModels(fs, level.tieModels),
+                tiePointer = WriteTies(fs, level.ties, 0x40),
                 unk4Pointer = SeekWrite(fs, level.unk4),
                 textureConfigMenuPointer = SeekWrite(fs, WriteTextureConfigMenus(level.textureConfigMenus)),
                 texture2dPointer = SeekWrite(fs, level.billboardBytes),
@@ -275,7 +275,7 @@ namespace LibReplanetizer.Serializers
             return headerOffset;
         }
 
-        private int WriteTies(FileStream fs, List<Tie> ties)
+        private int WriteTies(FileStream fs, List<Tie> ties, int alignment)
         {
             int headerSize = ties.Count * 0x70;
             int headerOffset = SeekReserve(fs, headerSize);
@@ -283,9 +283,7 @@ namespace LibReplanetizer.Serializers
             byte[] headBytes = new byte[headerSize];
             for (int i = 0; i < ties.Count; i++)
             {
-                byte[] colByte = ties[i].colorBytes;
-
-                int colorBytesOffset = SeekWrite(fs, colByte, 0x80);
+                int colorBytesOffset = SeekWrite(fs, ties[i].colorBytes, alignment);
 
                 ties[i].ToByteArray(colorBytesOffset).CopyTo(headBytes, i * 0x70);
             }
@@ -328,28 +326,19 @@ namespace LibReplanetizer.Serializers
             return outBytes;
         }
 
-        private byte[] WriteTieModels(List<Model> tiemodels, int offset)
+        private int WriteTieModels(FileStream fs, List<Model> tiemodels)
         {
-            offset += tiemodels.Count * 0x40;
-
-            var headBytes = new byte[tiemodels.Count * 0x40];
-            var bodyBytes = new List<byte>();
+            int headerSize = tiemodels.Count * 0x40;
+            int headerOffset = SeekReserve(fs, headerSize);
 
             for (int i = 0; i < tiemodels.Count; i++)
             {
                 TieModel g = (TieModel) tiemodels[i];
-                byte[] tieByte = g.SerializeHead(offset);
-                byte[] bodBytes = g.SerializeBody(offset);
-                bodyBytes.AddRange(bodBytes);
-                offset += bodBytes.Length;
-                tieByte.CopyTo(headBytes, i * 0x40);
+
+                g.WriteBytes(fs, headerOffset + i * 0x40);
             }
 
-            var outBytes = new byte[headBytes.Length + bodyBytes.Count];
-            headBytes.CopyTo(outBytes, 0);
-            bodyBytes.CopyTo(outBytes, headBytes.Length);
-
-            return outBytes;
+            return headerOffset;
         }
 
         private byte[] WriteShrubModels(List<Model> shrubmodels, int offset)

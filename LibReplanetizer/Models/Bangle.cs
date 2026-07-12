@@ -82,9 +82,9 @@ namespace LibReplanetizer.Models
             }
         }
 
-        public int WriteBytes(FileStream fs)
+        public int WriteBytes(FileStream fs, int mobyHeaderOffset)
         {
-            int headerOffset = SeekReserve(fs, MESHHEADERSIZE, 0x01);
+            int headerOffset = SeekReserve(fs, MESHHEADERSIZE);
 
             int textureConfigOffset = SeekReserve(fs, textureConfig.Count * TEXTUREELEMENTSIZE, 0x01);
             int metalTextureConfigOffset = SeekReserve(fs, metalTextureConfig.Count * TEXTUREELEMENTSIZE, 0x01);
@@ -97,10 +97,10 @@ namespace LibReplanetizer.Models
             byte[] headerBytes = new byte[MESHHEADERSIZE];
             WriteInt(headerBytes, 0x00, textureConfig.Count);
             WriteInt(headerBytes, 0x04, metalTextureConfig.Count);
-            WriteInt(headerBytes, 0x08, textureConfigOffset);
-            WriteInt(headerBytes, 0x0C, metalTextureConfigOffset);
-            WriteInt(headerBytes, 0x10, vertOffset);
-            WriteInt(headerBytes, 0x14, faceOffset);
+            WriteInt(headerBytes, 0x08, GetRelativeOffset(textureConfigOffset, mobyHeaderOffset));
+            WriteInt(headerBytes, 0x0C, GetRelativeOffset(metalTextureConfigOffset, mobyHeaderOffset));
+            WriteInt(headerBytes, 0x10, GetRelativeOffset(vertOffset, mobyHeaderOffset));
+            WriteInt(headerBytes, 0x14, GetRelativeOffset(faceOffset, mobyHeaderOffset));
             WriteShort(headerBytes, 0x18, (short) vertexCount);
             WriteShort(headerBytes, 0x1A, (short) metalVertexCount);
 
