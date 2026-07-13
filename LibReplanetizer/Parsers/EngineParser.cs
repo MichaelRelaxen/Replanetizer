@@ -11,6 +11,7 @@ using LibReplanetizer.Models;
 using LibReplanetizer.Models.Animations;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using static LibReplanetizer.DataFunctions;
 
@@ -118,13 +119,26 @@ namespace LibReplanetizer.Parsers
 
         public byte[] GetRenderDefBytes()
         {
-            if (engineHead.renderDefPointer > 0)
+            if (engineHead.renderDefPointer == 0) { return []; }
+
+            if (engineHead.game == GameType.RaC1)
             {
-                return ReadArbBytes(engineHead.renderDefPointer, engineHead.collisionPointer - engineHead.renderDefPointer);
+                int endPointer = engineHead.collisionPointer;
+
+                if (engineHead.unk1Pointer > 0)
+                    endPointer = engineHead.unk1Pointer;
+
+                if (engineHead.unk3Pointer > 0)
+                    endPointer = engineHead.unk3Pointer;
+
+                Utilities.DebugAssert(endPointer != 0, "No valid endPointer was found!");
+                Utilities.DebugAssert(engineHead.unk1Pointer == 0 || engineHead.unk3Pointer == 0, "Both pointers are present, we don't know their ordering yet!");
+
+                return ReadArbBytes(engineHead.renderDefPointer, endPointer - engineHead.renderDefPointer);
             }
             else
             {
-                return new byte[0];
+                return ReadArbBytes(engineHead.renderDefPointer, engineHead.collisionPointer - engineHead.renderDefPointer);
             }
         }
 
@@ -156,10 +170,30 @@ namespace LibReplanetizer.Parsers
             }
         }
 
+        public byte[] GetUnk1Bytes()
+        {
+            if (engineHead.unk1Pointer == 0) { return []; }
+
+            switch (GetGameType().num)
+            {
+                case 1: // Probably ship fight collision
+                    return ReadBlock(fileStream, engineHead.unk1Pointer, engineHead.collisionPointer - engineHead.unk1Pointer);
+                default:
+                    return [];
+            }
+        }
+
         public byte[] GetUnk3Bytes()
         {
             if (engineHead.unk3Pointer == 0) { return new byte[0]; }
-            return ReadBlock(fileStream, engineHead.unk3Pointer, engineHead.texturePointer - engineHead.unk3Pointer);
+
+            switch (GetGameType().num)
+            {
+                case 1: // Probably precipitation
+                    return ReadBlock(fileStream, engineHead.unk3Pointer, engineHead.collisionPointer - engineHead.unk3Pointer);
+                default:
+                    return ReadBlock(fileStream, engineHead.unk3Pointer, engineHead.texturePointer - engineHead.unk3Pointer);
+            }
         }
 
         public byte[] GetUnk4Bytes()

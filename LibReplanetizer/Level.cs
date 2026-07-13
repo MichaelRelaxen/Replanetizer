@@ -76,6 +76,7 @@ namespace LibReplanetizer
         public List<LanguageData> japanese;
         public List<LanguageData> korean;
 
+        public byte[] unk1;
         public byte[] unk3;
         public byte[] unk4;
         public byte[] unk5;
@@ -202,13 +203,13 @@ namespace LibReplanetizer
 
                 collisionEngine = engineParser.GetCollisionModel();
 
+                unk1 = engineParser.GetUnk1Bytes();
                 unk3 = engineParser.GetUnk3Bytes();
                 unk4 = engineParser.GetUnk4Bytes();
                 unk5 = engineParser.GetUnk5Bytes();
                 unk8 = engineParser.GetUnk8Bytes();
                 unk9 = engineParser.GetUnk9Bytes();
             }
-
 
             // Gameplay elements
             using (GameplayParser gameplayParser = new GameplayParser(game, path + @"/gameplay_ntsc"))

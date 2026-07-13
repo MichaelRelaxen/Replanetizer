@@ -54,6 +54,8 @@ namespace LibReplanetizer.Serializers
                 skyboxPointer = SeekWrite(fs, level.skybox.Serialize((int) fs.Position)),
                 terrainPointer = SeekWrite(fs, WriteTfrags(level.terrainEngine, (int) fs.Position, level.game)),
                 renderDefPointer = SeekWrite(fs, level.renderDefBytes),
+                unk1Pointer = SeekWrite(fs, level.unk1),
+                unk3Pointer = SeekWrite(fs, level.unk3),
                 collisionPointer = SeekWrite(fs, level.collisionEngine.Serialize()),
                 mobyModelPointer = WriteMobies(fs, level.mobyModels),
                 playerAnimationPointer = WritePlayerAnimations(fs, level.playerAnimations),
