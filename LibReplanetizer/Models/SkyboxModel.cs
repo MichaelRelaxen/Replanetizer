@@ -108,14 +108,14 @@ namespace LibReplanetizer.Models
             for (int i = 0; i < textureConfigs.Count; i++)
             {
                 headList[i] = startOffset + offs;
-                if (textureConfigs[i][0].id == 0)
+                if (textureConfigs[i].Count > 0 && textureConfigs[i][0].id == 0)
                 {
                     WriteShort(headBytes, offs + 0x00, 1);
                 }
 
                 WriteShort(headBytes, offs + 0x02, (short) textureConfigs[i].Count);
                 offs += 0x10;
-                foreach (var conf in textureConfigs[i])
+                foreach (TextureConfig conf in textureConfigs[i])
                 {
                     WriteInt(headBytes, offs, conf.id);
                     offs += 4;

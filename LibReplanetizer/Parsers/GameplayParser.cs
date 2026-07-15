@@ -399,7 +399,16 @@ namespace LibReplanetizer.Parsers
             // Pointlights are not used in the PS3 remasters, only RaC 1 contains valid information. We parse them anyway!
             byte[] headBlock = ReadBlock(fileStream, gameplayHeader.pointLightPointer, 0x10);
 
-            int count = ReadInt(headBlock, 0x00);
+            int count;
+            if (game != GameType.DL)
+            {
+                count = ReadInt(headBlock, 0x00);
+            }
+            else
+            {
+                count = headBlock[0x00];
+            }
+
             Utilities.DebugAssert(ReadInt(headBlock, 0x04) == 0, "Header[0x04] is not 0!");
             Utilities.DebugAssert(ReadInt(headBlock, 0x08) == 0, "Header[0x08] is not 0!");
             Utilities.DebugAssert(ReadInt(headBlock, 0x0C) == 0, "Header[0x0C] is not 0!");

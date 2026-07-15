@@ -592,7 +592,7 @@ namespace LibReplanetizer.LevelObjects
                 WriteInt(bytes, 0x9C, off9C);
 
                 if (byteSize == 0xA4)
-                    WriteInt(bytes, 0x100, offA0);
+                    WriteInt(bytes, 0xA0, offA0);
             }
             else
             {

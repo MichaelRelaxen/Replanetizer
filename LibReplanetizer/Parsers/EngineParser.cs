@@ -152,22 +152,26 @@ namespace LibReplanetizer.Parsers
 
                 return ReadArbBytes(engineHead.texture2dPointer, engineHead.soundConfigPointer - engineHead.texture2dPointer);
             }
-            else
-            {
+
+            if (engineHead.game == GameType.RaC2 || engineHead.game == GameType.RaC3)
                 return ReadArbBytes(engineHead.texture2dPointer, engineHead.mobyModelPointer - engineHead.texture2dPointer);
-            }
+
+            return ReadArbBytes(engineHead.texture2dPointer, engineHead.skyboxPointer - engineHead.texture2dPointer);
         }
 
         public byte[] GetSoundConfigBytes()
         {
             if (engineHead.game == GameType.RaC1)
-            {
                 return ReadArbBytes(engineHead.soundConfigPointer, engineHead.lightPointer - engineHead.soundConfigPointer);
-            }
-            else
-            {
+
+            if (engineHead.game == GameType.RaC2 || engineHead.game == GameType.RaC3)
                 return ReadArbBytes(engineHead.soundConfigPointer, engineHead.playerAnimationPointer - engineHead.soundConfigPointer);
-            }
+
+            int endPointer = (engineHead.unk9Pointer > 0) ? engineHead.unk9Pointer : engineHead.terrainPointer;
+
+            Utilities.DebugAssert(endPointer != 0, "Failed to determine proper end pointer!");
+
+            return ReadArbBytes(engineHead.soundConfigPointer, endPointer - engineHead.soundConfigPointer);
         }
 
         public byte[] GetUnk1Bytes()

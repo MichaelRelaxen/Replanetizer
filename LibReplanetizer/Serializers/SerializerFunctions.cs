@@ -134,10 +134,9 @@ namespace LibReplanetizer.Serializers
 
             for (int i = 0; i < 4; i++)
             {
-                if (vertBytes[i].Count == 0)
-                {
+                if (i > 0 && vertBytes[i].Count == 0 && rgbaBytes[i].Count == 0 && uvBytes[i].Count == 0 && indexBytes[i].Count == 0)
                     continue;
-                }
+
                 Pad(outBytes);
                 vertOffsets[i] = fileOffset + outBytes.Count;
                 outBytes.AddRange(vertBytes[i]);
