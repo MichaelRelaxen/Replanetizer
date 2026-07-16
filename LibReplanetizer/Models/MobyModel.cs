@@ -339,22 +339,24 @@ namespace LibReplanetizer.Models
             // Bangles
             if (banglesPointer > 0)
             {
-                byte[] banglesHeader = ReadBlock(fs, offset + banglesPointer * 0x10, 0x04);
+                byte[] banglesHeader = ReadBlock(fs, offset + banglesPointer * 0x10, 0x40);
 
-                Utilities.DebugAssert(ReadInt(banglesHeader, 0x00) == 0, "Header[0x00] is not 0!");
+                byte unk0 = banglesHeader[0x00];
+                byte unk1 = banglesHeader[0x01];
+                ushort occupancyMask = ReadUshort(banglesHeader, 0x02);
 
-                // Wrench always loads 15 bangles
-                byte banglesCount = 15;
+                int banglesCount = 32 - System.Numerics.BitOperations.LeadingZeroCount(occupancyMask);
 
-                byte[] banglesIndices = ReadBlock(fs, offset + banglesPointer * 0x10 + 0x04, banglesCount * 0x04);
+                Utilities.DebugAssert(banglesCount <= 15, "More bangles than expected!");
 
                 for (int i = 0; i < banglesCount; i++)
                 {
-                    int bangleHeaderOffset = ReadInt(banglesIndices, i * 0x04);
+                    int bangleHeaderOffset = ReadInt(banglesHeader, 0x04 + i * 0x04);
 
                     if (bangleHeaderOffset > 0)
                     {
-                        bangles.Add(new Bangle(fs, offset, bangleHeaderOffset));
+                        Utilities.DebugAssert((occupancyMask & (1 << i)) != 0, "Occupancy mask discrepancy!");
+                        bangles.Add(new Bangle(fs, offset, bangleHeaderOffset, banglesPointer * 0x10 + 0x40 + i * 0x10));
                     }
                 }
             }
@@ -490,18 +492,20 @@ namespace LibReplanetizer.Models
             int banglesPointer = 0;
             if (bangles.Count > 0)
             {
-                int maxBangles = 15;
-                int bangleCount = bangles.Count < maxBangles ? bangles.Count : maxBangles;
+                banglesPointer = SeekReserve(fs, 0x40, 0x01);
+                int unkBanglesDataPointer = SeekReserve(fs, 0x10 * bangles.Count, 0x01);
 
-                banglesPointer = SeekReserve(fs, 0x04 + maxBangles * 0x04, 0x01);
+                byte[] banglesOffsetsBytes = new byte[0x40];
 
-                byte[] banglesOffsetsBytes = new byte[0x04 + maxBangles * 0x04];
-
-                for (int i = 0; i < bangleCount; i++)
+                ushort occupancyMask = 0;
+                for (int i = 0; i < bangles.Count; i++)
                 {
-                    int bangleOffset = bangles[i].WriteBytes(fs, headerOffset);
+                    int bangleOffset = bangles[i].WriteBytes(fs, headerOffset, unkBanglesDataPointer + i * 0x10);
                     WriteInt(banglesOffsetsBytes, 0x04 + i * 0x04, GetRelativeOffset(bangleOffset, headerOffset));
+                    occupancyMask |= (ushort) (1 << i);
                 }
+
+                WriteUshort(banglesOffsetsBytes, 0x02, occupancyMask);
 
                 WriteBytesAtOffset(fs, banglesOffsetsBytes, banglesPointer);
             }

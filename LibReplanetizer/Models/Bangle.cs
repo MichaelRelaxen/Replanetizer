@@ -31,8 +31,10 @@ namespace LibReplanetizer.Models
 
         [Category("Unknowns"), DisplayName("Other Index Buffer")]
         public List<ushort> otherIndexBuffer { get; set; } = new List<ushort>();
+        private int unk1C;
+        private byte[] unkBytes = new byte[0x10];
 
-        public Bangle(FileStream fs, int baseOffset, int headerOffset)
+        public Bangle(FileStream fs, int baseOffset, int headerOffset, int unkDataOffset)
         {
             byte[] meshHeader = ReadBlock(fs, baseOffset + headerOffset, MESHHEADERSIZE);
 
@@ -43,7 +45,8 @@ namespace LibReplanetizer.Models
             int vertPointer = baseOffset + ReadInt(meshHeader, 0x10);
             int indexPointer = baseOffset + ReadInt(meshHeader, 0x14);
             ushort vertexCount = ReadUshort(meshHeader, 0x18);
-            ushort metalVertCount = ReadUshort(meshHeader, 0x1a);
+            ushort metalVertCount = ReadUshort(meshHeader, 0x1A);
+            unk1C = ReadInt(meshHeader, 0x1C);
 
             int faceCount = 0;
             if (texBlockPointer > 0)
@@ -80,9 +83,11 @@ namespace LibReplanetizer.Models
             {
                 metalIndexBuffer = GetIndices(fs, metalIndexPointer, metalFaceCount);
             }
+
+            unkBytes = ReadBlock(fs, baseOffset + unkDataOffset, 0x10);
         }
 
-        public int WriteBytes(FileStream fs, int mobyHeaderOffset)
+        public int WriteBytes(FileStream fs, int mobyHeaderOffset, int unkDataOffset)
         {
             int headerOffset = SeekReserve(fs, MESHHEADERSIZE);
 
@@ -103,6 +108,7 @@ namespace LibReplanetizer.Models
             WriteInt(headerBytes, 0x14, GetRelativeOffset(faceOffset, mobyHeaderOffset));
             WriteShort(headerBytes, 0x18, (short) vertexCount);
             WriteShort(headerBytes, 0x1A, (short) metalVertexCount);
+            WriteInt(headerBytes, 0x1C, unk1C);
 
             WriteBytesAtOffset(fs, headerBytes, headerOffset);
 
@@ -127,6 +133,8 @@ namespace LibReplanetizer.Models
             }
 
             WriteBytesAtOffset(fs, metalTextureConfigBytes, metalTextureConfigOffset);
+
+            WriteBytesAtOffset(fs, unkBytes, unkDataOffset);
 
             return headerOffset;
         }
