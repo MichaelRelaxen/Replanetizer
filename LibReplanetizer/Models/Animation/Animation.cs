@@ -21,13 +21,12 @@ namespace LibReplanetizer.Models.Animations
         public byte unk5 { get; set; }
         public byte unk7 { get; set; }
 
-        public uint null1 { get; set; }
         public float speed { get; set; }
 
         public List<Frame> frames { get; set; } = new List<Frame>();
         public List<int> sounds { get; set; } = new List<int>();
 
-        public List<byte> unknownBytes { get; set; } = new List<byte>();
+        public byte[] unknownBytes { get; set; } = [];
 
 
         public Animation()
@@ -71,20 +70,20 @@ namespace LibReplanetizer.Models.Animations
             byte soundsCount = header[0x12];
             unk7 = header[0x13];
 
-            null1 = ReadUint(header, 0x14);
+            int unkOffset = ReadInt(header, 0x14);
             speed = ReadFloat(header, 0x18);
-
-            if (null1 != 0)
-            {
-                unknownBytes.AddRange(ReadBlock(fs, modelOffset + null1, 0x60));
-            }
-
 
             // Frames
             byte[] animationPointerBlock = ReadBlock(fs, modelOffset + animationOffset + 0x1C, frameCount * 0x04);
             for (int i = 0; i < frameCount; i++)
             {
                 frames.Add(new Frame(fs, game, modelOffset + ReadInt(animationPointerBlock, i * 0x04), boneCount));
+            }
+
+            if (unkOffset > 0)
+            {
+                int unkBytesLength = (frameCount > 0) ? ReadInt(animationPointerBlock, 0x00) - unkOffset : 0x60;
+                unknownBytes = ReadBlock(fs, modelOffset + unkOffset, unkBytesLength);
             }
 
             // Sound configs
@@ -146,21 +145,7 @@ namespace LibReplanetizer.Models.Animations
             if (frames.Count == 0)
                 return 0;
 
-            // Head
-            byte[] headBytes = new byte[0x1C];
-
-            WriteFloat(headBytes, 0x00, unk1);
-            WriteFloat(headBytes, 0x04, unk2);
-            WriteFloat(headBytes, 0x08, unk3);
-            WriteFloat(headBytes, 0x0C, unk4);
-            headBytes[0x10] = (byte) frames.Count;
-            headBytes[0x11] = unk5;
-            headBytes[0x12] = (byte) sounds.Count;
-            headBytes[0x13] = unk7;
-            WriteUint(headBytes, 0x14, null1);
-            WriteFloat(headBytes, 0x18, speed);
-
-            int headerOffset = SeekWrite(fs, headBytes);
+            int headerOffset = SeekReserve(fs, 0x1C, 0x10);
 
             if (mobyHeaderOffset == 0)
                 mobyHeaderOffset = headerOffset;
@@ -168,7 +153,7 @@ namespace LibReplanetizer.Models.Animations
             int frameOffsetsOffset = SeekReserve(fs, frames.Count * 0x04, 0x01);
 
             // Sound configs
-            byte[] soundBytes = new byte[sounds.Count * 4];
+            byte[] soundBytes = new byte[sounds.Count * 0x04];
             for (int i = 0; i < sounds.Count; i++)
             {
                 WriteInt(soundBytes, i * 0x04, sounds[i]);
@@ -177,7 +162,7 @@ namespace LibReplanetizer.Models.Animations
             SeekWrite(fs, soundBytes, 0x01);
 
             SeekPast(fs, 0x20);
-            SeekWrite(fs, unknownBytes.ToArray(), 0x01);
+            int unkBytesOffset = SeekWrite(fs, unknownBytes, 0x01);
 
             // Frames
             List<int> frameOffsets = new List<int>(frames.Count);
@@ -194,6 +179,22 @@ namespace LibReplanetizer.Models.Animations
             }
 
             WriteBytesAtOffset(fs, frameOffsetsBytes, frameOffsetsOffset);
+
+            // Head
+            byte[] headBytes = new byte[0x1C];
+
+            WriteFloat(headBytes, 0x00, unk1);
+            WriteFloat(headBytes, 0x04, unk2);
+            WriteFloat(headBytes, 0x08, unk3);
+            WriteFloat(headBytes, 0x0C, unk4);
+            headBytes[0x10] = (byte) frames.Count;
+            headBytes[0x11] = unk5;
+            headBytes[0x12] = (byte) sounds.Count;
+            headBytes[0x13] = unk7;
+            WriteInt(headBytes, 0x14, GetRelativeOffset(unkBytesOffset, mobyHeaderOffset));
+            WriteFloat(headBytes, 0x18, speed);
+
+            WriteBytesAtOffset(fs, headBytes, headerOffset);
 
             return headerOffset;
         }

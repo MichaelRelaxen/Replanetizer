@@ -96,7 +96,7 @@ namespace LibReplanetizer.Models
 
             int vertOffset = SeekWrite(fs, SerializeVertices(), 0x80);
             int metalVertOffset = SeekWrite(fs, SerializeMetalVertices(), 0x01);
-            int faceOffset = SeekWrite(fs, GetFaceBytes(), 0x01);
+            int faceOffset = SeekWrite(fs, GetFaceBytes(), 0x10);
             int metalIndexOffset = SeekWrite(fs, SerializeMetalIndices(), 0x01);
 
             byte[] headerBytes = new byte[MESHHEADERSIZE];
