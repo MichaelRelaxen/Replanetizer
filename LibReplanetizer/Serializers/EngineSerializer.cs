@@ -51,8 +51,8 @@ namespace LibReplanetizer.Serializers
             {
                 game = level.game,
                 uiElementPointer = SeekWrite(fs, WriteUiElements(level.uiElements, (int) fs.Position)),
-                skyboxPointer = SeekWrite(fs, level.skybox.Serialize((int) fs.Position)),
-                terrainPointer = SeekWrite(fs, WriteTfrags(level.terrainEngine, (int) fs.Position, level.game)),
+                skyboxPointer = level.skybox.WriteBytes(fs),
+                terrainPointer = WriteTfrags(fs, level.terrainEngine, level.game),
                 renderDefPointer = SeekWrite(fs, level.renderDefBytes),
                 unk1Pointer = SeekWrite(fs, level.unk1),
                 unk3Pointer = SeekWrite(fs, level.unk3),
@@ -95,7 +95,7 @@ namespace LibReplanetizer.Serializers
             {
                 game = level.game,
                 uiElementPointer = SeekWrite(fs, WriteUiElements(level.uiElements, (int) fs.Position)),
-                terrainPointer = SeekWrite(fs, WriteTfrags(level.terrainEngine, (int) fs.Position, level.game)),
+                terrainPointer = WriteTfrags(fs, level.terrainEngine, level.game),
                 renderDefPointer = SeekWrite(fs, level.renderDefBytes),
                 collisionPointer = SeekWrite(fs, level.collisionEngine.Serialize()),
                 tieModelPointer = WriteTieModels(fs, level.tieModels),
@@ -107,7 +107,7 @@ namespace LibReplanetizer.Serializers
                 mobyModelPointer = WriteMobies(fs, level.mobyModels),
                 soundConfigPointer = SeekWrite(fs, level.soundConfigBytes),
                 playerAnimationPointer = WritePlayerAnimations(fs, level.playerAnimations),
-                skyboxPointer = SeekWrite(fs, level.skybox.Serialize((int) fs.Position)),
+                skyboxPointer = level.skybox.WriteBytes(fs),
                 lightPointer = SeekWrite(fs, WriteLights(level.lights)),
                 lightConfigPointer = SeekWrite(fs, WriteLightConfig(level.lightConfig)),
                 texturePointer = SeekWrite(fs, WriteTextures(level.textures)),
@@ -120,6 +120,8 @@ namespace LibReplanetizer.Serializers
                 lightCount = level.lights.Count,
                 textureConfigMenuCount = level.textureConfigMenus.Count,
             };
+
+            SeekWrite(fs, new byte[2304], 0x01);
 
             // Seek to the beginning and write the header now that we have all the pointers
             byte[] head = engineHeader.Serialize();
@@ -139,7 +141,7 @@ namespace LibReplanetizer.Serializers
                 mobyModelPointer = WriteMobies(fs, level.mobyModels),
                 soundConfigPointer = SeekWrite(fs, level.soundConfigBytes),
                 unk9Pointer = SeekWrite(fs, level.unk9),
-                terrainPointer = SeekWrite(fs, WriteTfrags(level.terrainEngine, (int) fs.Position, level.game)),
+                terrainPointer = WriteTfrags(fs, level.terrainEngine, level.game),
                 renderDefPointer = SeekWrite(fs, level.renderDefBytes),
                 collisionPointer = SeekWrite(fs, level.collisionEngine.Serialize()),
                 shrubModelPointer = SeekWrite(fs, WriteShrubModels(level.shrubModels, (int) fs.Position)),
@@ -150,7 +152,7 @@ namespace LibReplanetizer.Serializers
                 unk4Pointer = SeekWrite(fs, level.unk4),
                 textureConfigMenuPointer = SeekWrite(fs, WriteTextureConfigMenus(level.textureConfigMenus)),
                 texture2dPointer = SeekWrite(fs, level.billboardBytes),
-                skyboxPointer = SeekWrite(fs, level.skybox.Serialize((int) fs.Position)),
+                skyboxPointer = level.skybox.WriteBytes(fs),
                 lightPointer = SeekWrite(fs, WriteLights(level.lights)),
                 lightConfigPointer = SeekWrite(fs, WriteLightConfig(level.lightConfig)),
                 unk3Pointer = SeekWrite(fs, level.unk3),

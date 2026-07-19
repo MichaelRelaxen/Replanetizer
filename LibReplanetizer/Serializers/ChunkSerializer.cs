@@ -28,7 +28,7 @@ namespace LibReplanetizer.Serializers
 
             ChunkHeader chunkHeader = new ChunkHeader()
             {
-                terrainPointer = SeekWrite(fs, WriteTfrags(level.terrainChunks[chunk], (int) fs.Position, level.game)),
+                terrainPointer = WriteTfrags(fs, level.terrainChunks[chunk], level.game),
                 collisionPointer = SeekWrite(fs, level.collisionChunks[chunk].Serialize())
             };
 

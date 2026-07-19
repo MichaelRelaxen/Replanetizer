@@ -6,10 +6,12 @@
 // Please see the LICENSE.md file for more details.
 
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using static LibReplanetizer.DataFunctions;
+using static LibReplanetizer.Serializers.SerializerFunctions;
 
 namespace LibReplanetizer.Models
 {
@@ -79,20 +81,50 @@ namespace LibReplanetizer.Models
             someColor = Color.FromRgba(red, green, blue, alpha).ToPixel<Rgba32>();
         }
 
-        public byte[] Serialize(int startOffset)
+        public int WriteBytes(FileStream fs)
         {
             int headSize = (game == GameType.DL) ? 0x20 : 0x1C;
 
-            int faceStart = GetLength(headSize + textureConfigs.Count * 4);
-            int faceLength = textureConfigs.Count * 0x10;
+            int headerOffset = SeekReserve(fs, headSize);
+            int textureConfigOffsetsOffset = SeekReserve(fs, textureConfigs.Count * 0x04, 0x01);
+
+            int textureConfigBytesLength = textureConfigs.Count * 0x10;
             foreach (List<TextureConfig> conf in textureConfigs)
             {
-                faceLength += conf.Count * 0x10;
+                textureConfigBytesLength += conf.Count * 0x10;
             }
 
-            int headLength = faceStart + faceLength;
+            int textureConfigOffset = SeekReserve(fs, textureConfigBytesLength);
 
-            var headBytes = new byte[headLength];
+            int offs = 0;
+            byte[] textureConfigOffsetsBytes = new byte[textureConfigs.Count * 0x04];
+            byte[] textureConfigBytes = new byte[textureConfigBytesLength];
+            for (int i = 0; i < textureConfigs.Count; i++)
+            {
+                WriteInt(textureConfigOffsetsBytes, i * 0x04, textureConfigOffset + offs);
+                if (textureConfigs[i].Count > 0 && textureConfigs[i][0].id == 0)
+                {
+                    WriteShort(textureConfigBytes, offs + 0x00, 1);
+                }
+
+                WriteShort(textureConfigBytes, offs + 0x02, (short) textureConfigs[i].Count);
+                offs += 0x10;
+                foreach (TextureConfig conf in textureConfigs[i])
+                {
+                    WriteInt(textureConfigBytes, offs + 0x00, conf.id);
+                    WriteInt(textureConfigBytes, offs + 0x04, conf.start);
+                    WriteInt(textureConfigBytes, offs + 0x08, conf.size);
+                    offs += 0x10;
+                }
+            }
+
+            WriteBytesAtOffset(fs, textureConfigOffsetsBytes, textureConfigOffsetsOffset);
+            WriteBytesAtOffset(fs, textureConfigBytes, textureConfigOffset);
+
+            int vertOffset = SeekWrite(fs, GetVertexBytesSkybox(vertexBuffer));
+            int faceOffset = SeekWrite(fs, GetFaceBytes());
+
+            byte[] headBytes = new byte[headSize];
             headBytes[0x00] = someColor.R;
             headBytes[0x01] = someColor.G;
             headBytes[0x02] = someColor.B;
@@ -102,52 +134,12 @@ namespace LibReplanetizer.Models
             WriteShort(headBytes, 0x08, off08);
             WriteShort(headBytes, 0x0A, off0A);
             WriteInt(headBytes, 0x0C, off0C);
+            WriteInt(headBytes, headSize - 0x08, vertOffset);
+            WriteInt(headBytes, headSize - 0x04, faceOffset);
 
-            int offs = faceStart;
-            int[] headList = new int[textureConfigs.Count];
-            for (int i = 0; i < textureConfigs.Count; i++)
-            {
-                headList[i] = startOffset + offs;
-                if (textureConfigs[i].Count > 0 && textureConfigs[i][0].id == 0)
-                {
-                    WriteShort(headBytes, offs + 0x00, 1);
-                }
+            WriteBytesAtOffset(fs, headBytes, headerOffset);
 
-                WriteShort(headBytes, offs + 0x02, (short) textureConfigs[i].Count);
-                offs += 0x10;
-                foreach (TextureConfig conf in textureConfigs[i])
-                {
-                    WriteInt(headBytes, offs, conf.id);
-                    offs += 4;
-                    WriteInt(headBytes, offs, conf.start);
-                    offs += 4;
-                    WriteInt(headBytes, offs, conf.size);
-                    offs += 8;
-                }
-            }
-            for (int i = 0; i < headList.Length; i++)
-            {
-                WriteInt(headBytes, headSize + i * 4, headList[i]);
-            }
-
-
-            int vertOffset = GetLength(offs);
-            byte[] vertexBytes = GetVertexBytesSkybox(vertexBuffer);
-
-            int faceOffset = GetLength(vertOffset + vertexBytes.Length);
-            byte[] faceBytes = GetFaceBytes();
-
-            int endOffset = GetLength(faceOffset + faceBytes.Length);
-
-            byte[] returnBytes = new byte[endOffset];
-            headBytes.CopyTo(returnBytes, 0);
-            vertexBytes.CopyTo(returnBytes, vertOffset);
-            faceBytes.CopyTo(returnBytes, faceOffset);
-
-            WriteInt(returnBytes, headSize - 0x08, startOffset + vertOffset);
-            WriteInt(returnBytes, headSize - 0x04, startOffset + faceOffset);
-
-            return returnBytes;
+            return headerOffset;
         }
     }
 }

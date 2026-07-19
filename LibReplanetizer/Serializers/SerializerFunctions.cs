@@ -58,73 +58,80 @@ namespace LibReplanetizer.Serializers
             fs.Seek(previousPosition, SeekOrigin.Begin);
         }
 
-        public static byte[] WriteTfrags(Terrain terrain, int fileOffset, GameType game)
+        public static int WriteTfrags(FileStream fs, Terrain terrain, GameType game)
         {
             List<TerrainFragment> tFrags = terrain.fragments;
+
+            int headerSize = (game == GameType.DL) ? 0x70 : 0x60;
+
+            int textureBytesLength = 0;
+            for (int i = 0; i < tFrags.Count; i++)
+            {
+                TerrainModel? mod = (TerrainModel?) tFrags[i].model;
+
+                if (mod == null) continue;
+
+                foreach (TextureConfig texConf in mod.textureConfig)
+                    textureBytesLength += 0x10;
+            }
+
+            int headerOffset = SeekReserve(fs, headerSize);
+            int tfragHeadsOffset = SeekReserve(fs, 0x30 * tFrags.Count);
+            int textureBytesOffset = SeekReserve(fs, textureBytesLength);
+
+            byte[] headerBytes = new byte[headerSize];
+            byte[] tfragHeads = new byte[0x30 * tFrags.Count];
+            byte[] textureBytes = new byte[textureBytesLength];
 
             List<List<byte>> vertBytes = new List<List<byte>>() { new List<byte>(), new List<byte>(), new List<byte>(), new List<byte>() };
             List<List<byte>> rgbaBytes = new List<List<byte>>() { new List<byte>(), new List<byte>(), new List<byte>(), new List<byte>() };
             List<List<byte>> uvBytes = new List<List<byte>>() { new List<byte>(), new List<byte>(), new List<byte>(), new List<byte>() };
             List<List<byte>> indexBytes = new List<List<byte>>() { new List<byte>(), new List<byte>(), new List<byte>(), new List<byte>() };
 
-            List<byte> textureBytes = new List<byte>();
-
-            byte[] tfragHeads = new byte[0x30 * tFrags.Count];
-
-            int headerSize = (game == GameType.DL) ? 0x70 : 0x60;
-
             ushort chunk = 0;
+            int textureBytesPointer = 0;
 
             for (int i = 0; i < tFrags.Count; i++)
             {
-                TerrainModel? mod = (TerrainModel?) (tFrags[i].model);
+                TerrainModel? mod = (TerrainModel?) tFrags[i].model;
 
                 if (mod == null) continue;
 
                 int offset = i * 0x30;
                 tFrags[i].ToByteArray().CopyTo(tfragHeads, offset);
 
-                WriteInt(tfragHeads, offset + 0x10, fileOffset + headerSize + tfragHeads.Length + textureBytes.Count);
+                WriteInt(tfragHeads, offset + 0x10, textureBytesOffset + textureBytesPointer);
                 WriteInt(tfragHeads, offset + 0x14, mod.textureConfig.Count);
 
                 byte[] modelVertBytes = mod.SerializeVerts();
                 if (((vertBytes[chunk].Count + modelVertBytes.Length) / 0x1c) > 0xffff)
-                {
                     chunk++;
-                }
 
                 WriteUshort(tfragHeads, offset + 0x18, (ushort) (vertBytes[chunk].Count / 0x1c));
                 WriteUshort(tfragHeads, offset + 0x1a, (ushort) (mod.vertexBuffer.Length / 8));
 
                 WriteUshort(tfragHeads, offset + 0x22, chunk);
 
-                foreach (var texConf in mod.textureConfig)
+                foreach (TextureConfig texConf in mod.textureConfig)
                 {
                     byte[] texBytes = new byte[0x10];
                     WriteInt(texBytes, 0x00, texConf.id);
                     WriteInt(texBytes, 0x04, texConf.start + indexBytes[chunk].Count / 2);
                     WriteInt(texBytes, 0x08, texConf.size);
                     WriteInt(texBytes, 0x0C, texConf.mode);
-                    textureBytes.AddRange(texBytes);
+                    texBytes.CopyTo(textureBytes, textureBytesPointer);
+                    textureBytesPointer += 0x10;
                 }
 
                 indexBytes[chunk].AddRange(mod.GetFaceBytes((ushort) (vertBytes[chunk].Count / 0x1C)));
                 vertBytes[chunk].AddRange(modelVertBytes);
                 rgbaBytes[chunk].AddRange(mod.rgbas);
                 uvBytes[chunk].AddRange(mod.SerializeUVs());
-
             }
 
-            List<byte> outBytes = new List<byte>();
-
-            byte[] headerBytes = new byte[headerSize];
-            WriteInt(headerBytes, 0x00, fileOffset + headerSize);
+            WriteInt(headerBytes, 0x00, tfragHeadsOffset);
             WriteUshort(headerBytes, 0x04, terrain.levelNumber);
             WriteUshort(headerBytes, 0x06, (ushort) tFrags.Count);
-
-            outBytes.AddRange(headerBytes);
-            outBytes.AddRange(tfragHeads);
-            outBytes.AddRange(textureBytes);
 
             int[] vertOffsets = { 0, 0, 0, 0 };
             int[] rgbaOffsets = { 0, 0, 0, 0 };
@@ -137,36 +144,28 @@ namespace LibReplanetizer.Serializers
                 if (i > 0 && vertBytes[i].Count == 0 && rgbaBytes[i].Count == 0 && uvBytes[i].Count == 0 && indexBytes[i].Count == 0)
                     continue;
 
-                Pad(outBytes);
-                vertOffsets[i] = fileOffset + outBytes.Count;
-                outBytes.AddRange(vertBytes[i]);
-                Pad(outBytes);
-                rgbaOffsets[i] = fileOffset + outBytes.Count;
-                outBytes.AddRange(rgbaBytes[i]);
-                Pad(outBytes);
-                uvOffsets[i] = fileOffset + outBytes.Count;
-                outBytes.AddRange(uvBytes[i]);
-                Pad(outBytes);
-                indexOffsets[i] = fileOffset + outBytes.Count;
-                outBytes.AddRange(indexBytes[i]);
-                Pad(outBytes);
-                unkOffsets[i] = fileOffset + outBytes.Count;
+                vertOffsets[i] = SeekWrite(fs, vertBytes[i].ToArray());
+                rgbaOffsets[i] = SeekWrite(fs, rgbaBytes[i].ToArray());
+                uvOffsets[i] = SeekWrite(fs, uvBytes[i].ToArray());
+                indexOffsets[i] = SeekWrite(fs, indexBytes[i].ToArray());
+                unkOffsets[i] = 0; // TODO: SeekWrite(fs, unkBytes[i].ToArray());
             }
-
-
-            byte[] outByteArr = outBytes.ToArray();
 
             for (int i = 0; i < 4; i++)
             {
-                WriteInt(outByteArr, 0x08 + i * 4, vertOffsets[i]);
-                WriteInt(outByteArr, 0x18 + i * 4, rgbaOffsets[i]);
-                WriteInt(outByteArr, 0x28 + i * 4, uvOffsets[i]);
-                WriteInt(outByteArr, 0x38 + i * 4, indexOffsets[i]);
+                WriteInt(headerBytes, 0x08 + i * 4, vertOffsets[i]);
+                WriteInt(headerBytes, 0x18 + i * 4, rgbaOffsets[i]);
+                WriteInt(headerBytes, 0x28 + i * 4, uvOffsets[i]);
+                WriteInt(headerBytes, 0x38 + i * 4, indexOffsets[i]);
                 if (game == GameType.DL)
-                    WriteInt(outByteArr, 0x48 + i * 4, unkOffsets[i]);
+                    WriteInt(headerBytes, 0x48 + i * 4, unkOffsets[i]);
             }
 
-            return outByteArr;
+            WriteBytesAtOffset(fs, headerBytes, headerOffset);
+            WriteBytesAtOffset(fs, tfragHeads, tfragHeadsOffset);
+            WriteBytesAtOffset(fs, textureBytes, textureBytesOffset);
+
+            return headerOffset;
         }
     }
 }
