@@ -35,6 +35,8 @@ namespace LibReplanetizer.Models
         public uint off38 { get; set; }
         public uint off3C { get; set; }
 
+        private byte[] unkVertexUVs = [];
+
 
         public TieModel(FileStream fs, byte[] tieBlock, int num)
         {
@@ -49,16 +51,16 @@ namespace LibReplanetizer.Models
             int indexPointer = ReadInt(tieBlock, offset + 0x18);
             int texturePointer = ReadInt(tieBlock, offset + 0x1C);
 
-            off20 = ReadUint(tieBlock, offset + 0x20);                 //null
+            off20 = ReadUint(tieBlock, offset + 0x20);
             int vertexCount = ReadInt(tieBlock, offset + 0x24);
             short textureCount = ReadShort(tieBlock, offset + 0x28);
             wiggleMode = ReadShort(tieBlock, offset + 0x2A);
             off2C = ReadFloat(tieBlock, offset + 0x2C);
 
             id = ReadShort(tieBlock, offset + 0x30);
-            off34 = ReadUint(tieBlock, offset + 0x34);                 //null
-            off38 = ReadUint(tieBlock, offset + 0x38);                 //null
-            off3C = ReadUint(tieBlock, offset + 0x3C);                 //null
+            off34 = ReadUint(tieBlock, offset + 0x34);
+            off38 = ReadUint(tieBlock, offset + 0x38);
+            off3C = ReadUint(tieBlock, offset + 0x3C);
 
             size = 1.0f;
 
@@ -67,6 +69,13 @@ namespace LibReplanetizer.Models
 
             //Get vertex buffer float[vertX, vertY, vertZ, normX, normY, normZ] and UV array float[U, V] * vertexCount
             vertexBuffer = GetVertices(fs, vertexPointer, uvPointer, vertexCount, TIEVERTELEMSIZE, TIEUVELEMSIZE);
+
+            // Sometimes there are additional UV, it is unknown what they are used for.
+            if (indexPointer > AlignAddressUp(uvPointer + TIEUVELEMSIZE * vertexCount, 0x10))
+            {
+                int unkVertexUVsOffset = uvPointer + TIEUVELEMSIZE * vertexCount;
+                unkVertexUVs = ReadBlock(fs, unkVertexUVsOffset, indexPointer - unkVertexUVsOffset);
+            }
 
             //Get index buffer ushort[i] * faceCount
             indexBuffer = GetIndices(fs, indexPointer, indexCount);
@@ -89,6 +98,7 @@ namespace LibReplanetizer.Models
 
             int vertexOffset = SeekWrite(fs, SerializeTieVertices(), 0x80);
             int uvOffset = SeekWrite(fs, SerializeUVs());
+            SeekWrite(fs, unkVertexUVs);
             int indexOffset = SeekWrite(fs, GetFaceBytes());
 
             byte[] headerBytes = new byte[0x40];

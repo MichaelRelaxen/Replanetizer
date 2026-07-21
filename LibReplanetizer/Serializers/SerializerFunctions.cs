@@ -16,14 +16,20 @@ namespace LibReplanetizer.Serializers
 {
     public static class SerializerFunctions
     {
-        public static int SeekWrite(FileStream fs, byte[]? bytes, int alignment = 0x10)
+        public static int SeekWriteForced(FileStream fs, byte[] bytes, int alignment = 0x10)
         {
-            if (bytes == null || bytes.Length == 0) return 0;
-
             SeekPast(fs, alignment);
             int pos = (int) fs.Position;
             fs.Write(bytes, 0, bytes.Length);
             return pos;
+        }
+
+
+        public static int SeekWrite(FileStream fs, byte[]? bytes, int alignment = 0x10)
+        {
+            if (bytes == null || bytes.Length == 0) return 0;
+
+            return SeekWriteForced(fs, bytes, alignment);
         }
 
         public static int SeekReserve(FileStream fs, int length, int alignment = 0x10)

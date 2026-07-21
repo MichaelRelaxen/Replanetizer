@@ -206,6 +206,8 @@ namespace LibReplanetizer.Models
         public Skeleton? skeleton = null;
         [Category("Attributes"), DisplayName("Is Model")]
         public bool isModel { get; set; } = true;
+        private bool hasMeshData = false;
+        private ushort unkBanglesData = 0;
 
         public override int GetSubModelCount() { return bangles.Count; }
         public override Model? GetSubModel(int index) { return (index < bangles.Count) ? (Model?) bangles[index] : null; }
@@ -224,7 +226,7 @@ namespace LibReplanetizer.Models
             int vertPointer = baseOffset + ReadInt(meshHeader, 0x10);
             int indexPointer = baseOffset + ReadInt(meshHeader, 0x14);
             ushort vertexCount = ReadUshort(meshHeader, 0x18);
-            ushort metalVertCount = ReadUshort(meshHeader, 0x1a);
+            ushort metalVertCount = ReadUshort(meshHeader, 0x1A);
 
             vertexCount2 = ReadUshort(meshHeader, 0x1C);     //These vertices are not affected by color2
 
@@ -263,6 +265,8 @@ namespace LibReplanetizer.Models
             {
                 metalIndexBuffer = GetIndices(fs, metalIndexPointer, metalFaceCount);
             }
+
+            hasMeshData = true;
         }
 
 
@@ -340,8 +344,7 @@ namespace LibReplanetizer.Models
             {
                 byte[] banglesHeader = ReadBlock(fs, offset + banglesPointer * 0x10, 0x40);
 
-                byte unk0 = banglesHeader[0x00];
-                byte unk1 = banglesHeader[0x01];
+                unkBanglesData = ReadUshort(banglesHeader, 0x00);
                 ushort occupancyMask = ReadUshort(banglesHeader, 0x02);
 
                 int banglesCount = 32 - System.Numerics.BitOperations.LeadingZeroCount(occupancyMask);
@@ -486,7 +489,7 @@ namespace LibReplanetizer.Models
             else
                 SeekReserve(fs, 0x20, 0x01);
 
-            int meshDataOffset = SeekReserve(fs, (vertexCount > 0) ? 0x20 : 0);
+            int meshDataOffset = SeekReserve(fs, hasMeshData ? 0x20 : 0);
             int textureConfigOffset = SeekReserve(fs, textureConfig.Count * 0x10, 0x01);
             int metalTextureConfigOffset = SeekReserve(fs, metalTextureConfig.Count * 0x10, 0x01);
 
@@ -511,6 +514,7 @@ namespace LibReplanetizer.Models
                     occupancyMask |= (ushort) (1 << i);
                 }
 
+                WriteUshort(banglesOffsetsBytes, 0x00, unkBanglesData);
                 WriteUshort(banglesOffsetsBytes, 0x02, occupancyMask);
 
                 WriteBytesAtOffset(fs, banglesOffsetsBytes, banglesPointer);
@@ -645,11 +649,11 @@ namespace LibReplanetizer.Models
                 WriteInt(meshDataBytes, 0x00, textureConfig.Count);
                 WriteInt(meshDataBytes, 0x04, metalTextureConfig.Count);
                 WriteInt(meshDataBytes, 0x08, GetRelativeOffset(textureConfigOffset, headerOffset));
-                WriteInt(meshDataBytes, 0x0c, GetRelativeOffset(metalTextureConfigOffset, headerOffset));
+                WriteInt(meshDataBytes, 0x0C, GetRelativeOffset(metalTextureConfigOffset, headerOffset));
                 WriteInt(meshDataBytes, 0x10, GetRelativeOffset(vertOffset, headerOffset));
                 WriteInt(meshDataBytes, 0x14, GetRelativeOffset(faceOffset, headerOffset));
                 WriteShort(meshDataBytes, 0x18, (short) vertexCount);
-                WriteShort(meshDataBytes, 0x1a, (short) metalVertexCount);
+                WriteShort(meshDataBytes, 0x1A, (short) metalVertexCount);
                 WriteShort(meshDataBytes, 0x1C, (short) vertexCount2);
 
                 WriteBytesAtOffset(fs, meshDataBytes, meshDataOffset);

@@ -197,7 +197,7 @@ namespace LibReplanetizer.Models
         public byte[] SerializeTieVertices()
         {
             int elemSize = 0x18;
-            byte[] outBytes = new byte[(vertexBuffer.Length / 8) * elemSize];
+            byte[] outBytes = new byte[vertexCount * elemSize];
 
             for (int i = 0; i < vertexBuffer.Length / 8; i++)
             {
@@ -215,7 +215,7 @@ namespace LibReplanetizer.Models
         public byte[] SerializeUVs()
         {
             int elemSize = 0x08;
-            byte[] outBytes = new byte[(vertexBuffer.Length / 8) * elemSize];
+            byte[] outBytes = new byte[vertexCount * elemSize];
 
             for (int i = 0; i < vertexBuffer.Length / 8; i++)
             {

@@ -121,18 +121,17 @@ namespace LibReplanetizer.Parsers
         {
             if (engineHead.renderDefPointer == 0) { return []; }
 
-            if (engineHead.game == GameType.RaC1)
+            if (engineHead.game == GameType.RaC1 || engineHead.game == GameType.RaC2 || engineHead.game == GameType.RaC3)
             {
                 int endPointer = engineHead.collisionPointer;
-
-                if (engineHead.unk1Pointer > 0)
-                    endPointer = engineHead.unk1Pointer;
 
                 if (engineHead.unk3Pointer > 0)
                     endPointer = engineHead.unk3Pointer;
 
+                if (engineHead.unk1Pointer > 0)
+                    endPointer = engineHead.unk1Pointer;
+
                 Utilities.DebugAssert(endPointer != 0, "No valid endPointer was found!");
-                Utilities.DebugAssert(engineHead.unk1Pointer == 0 || engineHead.unk3Pointer == 0, "Both pointers are present, we don't know their ordering yet!");
 
                 return ReadArbBytes(engineHead.renderDefPointer, endPointer - engineHead.renderDefPointer);
             }
@@ -145,13 +144,7 @@ namespace LibReplanetizer.Parsers
         public byte[] GetBillboardBytes()
         {
             if (engineHead.game == GameType.RaC1)
-            {
-                // TODO: engineHead.soundConfigPointer can be NULL! This will break everything!
-                if (engineHead.soundConfigPointer == 0)
-                    return [];
-
                 return ReadArbBytes(engineHead.texture2dPointer, engineHead.soundConfigPointer - engineHead.texture2dPointer);
-            }
 
             if (engineHead.game == GameType.RaC2 || engineHead.game == GameType.RaC3)
                 return ReadArbBytes(engineHead.texture2dPointer, engineHead.mobyModelPointer - engineHead.texture2dPointer);
@@ -178,43 +171,52 @@ namespace LibReplanetizer.Parsers
         {
             if (engineHead.unk1Pointer == 0) { return []; }
 
-            switch (GetGameType().num)
+            if (engineHead.game == GameType.RaC1 || engineHead.game == GameType.RaC2 || engineHead.game == GameType.RaC3)
             {
-                case 1: // Probably ship fight collision
-                    return ReadBlock(fileStream, engineHead.unk1Pointer, engineHead.collisionPointer - engineHead.unk1Pointer);
-                default:
-                    return [];
+                int endPointer = engineHead.collisionPointer;
+
+                if (engineHead.unk3Pointer > 0)
+                    endPointer = engineHead.unk3Pointer;
+
+                Utilities.DebugAssert(endPointer != 0, "No valid endPointer was found!");
+
+                return ReadBlock(fileStream, engineHead.unk1Pointer, endPointer - engineHead.unk1Pointer);
+            }
+            else
+            {
+                return [];
             }
         }
 
         public byte[] GetUnk3Bytes()
         {
-            if (engineHead.unk3Pointer == 0) { return new byte[0]; }
+            if (engineHead.unk3Pointer == 0) { return []; }
 
-            switch (GetGameType().num)
+            if (engineHead.game == GameType.RaC1 || engineHead.game == GameType.RaC2 || engineHead.game == GameType.RaC3)
             {
-                case 1: // Probably precipitation
-                    return ReadBlock(fileStream, engineHead.unk3Pointer, engineHead.collisionPointer - engineHead.unk3Pointer);
-                default:
-                    return ReadBlock(fileStream, engineHead.unk3Pointer, engineHead.texturePointer - engineHead.unk3Pointer);
+                return ReadBlock(fileStream, engineHead.unk3Pointer, engineHead.collisionPointer - engineHead.unk3Pointer);
+            }
+            else
+            {
+                return ReadBlock(fileStream, engineHead.unk3Pointer, engineHead.texturePointer - engineHead.unk3Pointer);
             }
         }
 
         public byte[] GetUnk4Bytes()
         {
-            if (engineHead.unk4Pointer == 0) { return new byte[0]; }
+            if (engineHead.unk4Pointer == 0) { return []; }
             return ReadBlock(fileStream, engineHead.unk4Pointer, engineHead.textureConfigMenuPointer - engineHead.unk4Pointer);
         }
 
         public byte[] GetUnk5Bytes()
         {
-            if (engineHead.unk5Pointer == 0) { return new byte[0]; }
+            if (engineHead.unk5Pointer == 0) { return []; }
             return ReadBlock(fileStream, engineHead.unk5Pointer, engineHead.tieModelPointer - engineHead.unk5Pointer);
         }
 
         public byte[] GetUnk8Bytes()
         {
-            if (engineHead.unk8Pointer == 0) { return new byte[0]; }
+            if (engineHead.unk8Pointer == 0) { return []; }
             byte[] head = ReadBlock(fileStream, engineHead.unk8Pointer, 16);
             int amount = ReadInt(head, 4);
             return ReadBlock(fileStream, engineHead.unk8Pointer, 0x10 + amount);
@@ -222,7 +224,7 @@ namespace LibReplanetizer.Parsers
 
         public byte[] GetUnk9Bytes()
         {
-            if (engineHead.unk9Pointer == 0) { return new byte[0]; }
+            if (engineHead.unk9Pointer == 0) { return []; }
             return ReadBlock(fileStream, engineHead.unk9Pointer, engineHead.terrainPointer - engineHead.unk9Pointer);
         }
 
