@@ -5,6 +5,7 @@
 // either version 3 of the License, or (at your option) any later version.
 // Please see the LICENSE.md file for more details.
 
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -22,7 +23,14 @@ namespace LibReplanetizer.Models
         private float unk0C;
         private byte[] vertexBytes = [];
 
-        public Corncob(FileStream fs, int offset, int kernelOffset)
+        public enum LoadingHint
+        {
+            Empty,
+            HasVertices,
+            Unknown
+        }
+
+        public Corncob(FileStream fs, int offset, int kernelOffset, LoadingHint hint)
         {
             if (kernelOffset == 0xFF)
                 return;
@@ -36,7 +44,12 @@ namespace LibReplanetizer.Models
             unk08 = ReadFloat(headerBytes, 0x08);
             unk0C = ReadFloat(headerBytes, 0x0C);
 
-            if (unk00 == 0.0f && unk04 == 0.0f && unk08 == 0.0f && unk0C == 0.0f)
+            bool loadVertices = hint == LoadingHint.HasVertices;
+
+            if (hint == LoadingHint.Unknown)
+                loadVertices = Array.Exists(headerBytes, b => b != 0);
+
+            if (loadVertices == false)
                 return;
 
             ushort vertexCount = ReadUshort(ReadBlock(fs, offset + kernelOffset * 0x10 + 0x16, 0x02), 0x00);

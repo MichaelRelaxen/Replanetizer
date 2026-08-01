@@ -201,7 +201,7 @@ namespace LibReplanetizer.Models
         public List<BoneData> boneDatas { get; set; } = new List<BoneData>();
         [Category("Attributes"), DisplayName("Bangles")]
         public List<Bangle> bangles { get; set; } = new List<Bangle>();
-        public List<Corncob> corncobs { get; set; } = new List<Corncob>();
+        public Corncob?[] corncobs { get; set; } = [];
 
         public Skeleton? skeleton = null;
         [Category("Attributes"), DisplayName("Is Model")]
@@ -367,11 +367,27 @@ namespace LibReplanetizer.Models
             {
                 byte[] corncobHeaderBytes = ReadBlock(fs, offset + corncobPointer * 0x10, 0x10);
 
+                corncobs = new Corncob?[16];
+
                 for (int i = 0; i < 16; i++)
                 {
                     byte kernelOffset = corncobHeaderBytes[i];
 
-                    corncobs.Add(new Corncob(fs, offset + corncobPointer * 0x10, kernelOffset));
+                    Corncob.LoadingHint hint;
+                    if (kernelOffset == 0xFF)
+                    {
+                        hint = Corncob.LoadingHint.Empty;
+                    }
+                    else if (i + 1 < 16)
+                    {
+                        hint = ((corncobHeaderBytes[i + 1] - kernelOffset) > 1) ? Corncob.LoadingHint.HasVertices : Corncob.LoadingHint.Empty;
+                    }
+                    else
+                    {
+                        hint = Corncob.LoadingHint.Unknown;
+                    }
+
+                    corncobs[i] = new Corncob(fs, offset + corncobPointer * 0x10, kernelOffset, hint);
                 }
             }
 
@@ -591,19 +607,28 @@ namespace LibReplanetizer.Models
             WriteBytesAtOffset(fs, animationOffsetsBytes, animationOffsetsOffset);
 
             int corncobPointer = 0;
-            if (corncobs.Count > 0)
+            if (corncobs.Length == 16)
             {
                 corncobPointer = SeekReserve(fs, 0x10);
 
                 byte[] corncobHeaderBytes = new byte[0x10];
 
-                for (int i = 0; i < corncobs.Count; i++)
+                for (int i = 0; i < 16; i++)
                 {
-                    byte[] corncobBytes = corncobs[i].Serialize();
+                    Corncob? corncob = corncobs[i];
+                    if (corncob != null)
+                    {
+                        byte[] corncobBytes = corncob.Serialize();
 
-                    int corncobOffset = SeekWrite(fs, corncobBytes, 0x10);
+                        int corncobOffset = SeekWrite(fs, corncobBytes, 0x10);
 
-                    corncobHeaderBytes[i] = (corncobOffset != 0) ? (byte) ((corncobOffset - corncobPointer) / 0x10) : (byte) 0xFF;
+                        corncobHeaderBytes[i] = (byte) ((corncobOffset - corncobPointer) / 0x10);
+                    }
+                    else
+                    {
+                        corncobHeaderBytes[i] = 0xFF;
+                    }
+
                 }
 
                 WriteBytesAtOffset(fs, corncobHeaderBytes, corncobPointer);
