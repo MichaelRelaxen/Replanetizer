@@ -40,7 +40,7 @@ https://material.io/tools/icons/?style=baseline,
 which is protected under the apache 2.0 license availible at
 https://www.apache.org/licenses/LICENSE-2.0.html
 
-", gitTreeStatus, wnd.openGLString);
+", gitTreeStatus, wnd.backendGraphicsString);
         }
 
         public override void Render(float deltaTime)
