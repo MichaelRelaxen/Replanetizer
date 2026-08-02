@@ -107,8 +107,8 @@ namespace LibReplanetizer.Headers
 
             mobyModelPointer = ReadInt(engineHeadBlock, 0x00);
             renderDefPointer = ReadInt(engineHeadBlock, 0x04);
-            unk1Pointer = ReadInt(engineHeadBlock, 0x08);
-            unk2Pointer = ReadInt(engineHeadBlock, 0x0C);
+            unk1Pointer = ReadInt(engineHeadBlock, 0x08);   // RC1 in-level ship missions (like Pokitaru or Drek's Fleet)
+            unk2Pointer = ReadInt(engineHeadBlock, 0x0C);   // Spherical Planets (like Jamming Array)
 
             skyboxPointer = ReadInt(engineHeadBlock, 0x10);
             collisionPointer = ReadInt(engineHeadBlock, 0x14);
@@ -125,7 +125,7 @@ namespace LibReplanetizer.Headers
             shrubCount = ReadInt(engineHeadBlock, 0x38);
             terrainPointer = ReadInt(engineHeadBlock, 0x3C);
 
-            unk3Pointer = ReadInt(engineHeadBlock, 0x40);
+            unk3Pointer = ReadInt(engineHeadBlock, 0x40);   // Precipitation (like Batalia or Oozla)
             unk4Pointer = ReadInt(engineHeadBlock, 0x44);
             soundConfigPointer = ReadInt(engineHeadBlock, 0x48);
             gadgetPointer = ReadInt(engineHeadBlock, 0x4C);

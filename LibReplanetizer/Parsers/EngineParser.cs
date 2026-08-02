@@ -128,6 +128,9 @@ namespace LibReplanetizer.Parsers
                 if (engineHead.unk3Pointer > 0)
                     endPointer = engineHead.unk3Pointer;
 
+                if (engineHead.unk2Pointer > 0)
+                    endPointer = engineHead.unk2Pointer;
+
                 if (engineHead.unk1Pointer > 0)
                     endPointer = engineHead.unk1Pointer;
 
@@ -178,6 +181,9 @@ namespace LibReplanetizer.Parsers
                 if (engineHead.unk3Pointer > 0)
                     endPointer = engineHead.unk3Pointer;
 
+                if (engineHead.unk2Pointer > 0)
+                    endPointer = engineHead.unk2Pointer;
+
                 Utilities.DebugAssert(endPointer != 0, "No valid endPointer was found!");
 
                 return ReadBlock(fileStream, engineHead.unk1Pointer, endPointer - engineHead.unk1Pointer);
@@ -185,6 +191,21 @@ namespace LibReplanetizer.Parsers
             else
             {
                 return [];
+            }
+        }
+
+        public byte[] GetUnk2Bytes()
+        {
+            if (engineHead.unk2Pointer == 0) { return []; }
+
+            if (engineHead.game == GameType.RaC1 || engineHead.game == GameType.RaC2 || engineHead.game == GameType.RaC3)
+            {
+                // No order relationship with unk3Pointer is known.
+                return ReadBlock(fileStream, engineHead.unk2Pointer, engineHead.collisionPointer - engineHead.unk2Pointer);
+            }
+            else
+            {
+                return ReadBlock(fileStream, engineHead.unk2Pointer, engineHead.texturePointer - engineHead.unk2Pointer);
             }
         }
 
