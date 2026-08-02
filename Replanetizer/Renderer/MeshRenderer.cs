@@ -440,9 +440,9 @@ namespace Replanetizer.Renderer
             renderPerformBillboardOnly = false;
         }
 
-        private void RenderModel(Model model, int modelVAO)
+        private void RenderModel(Model model, ModelGPUData modelGPUData)
         {
-            GL.BindVertexArray(modelVAO);
+            GL.BindVertexArray(modelGPUData.vao);
 
             shaderTable.meshShader.UseShader();
 
@@ -465,8 +465,34 @@ namespace Replanetizer.Renderer
                 GL.DrawElements(PrimitiveType.Triangles, conf.size, DrawElementsType.UnsignedShort, conf.start * sizeof(ushort));
             }
 
+            if (model is MetalModel metalModel
+                && modelGPUData.metalVao != 0
+                && modelGPUData.metalIndexCount > 0)
+            {
+                GL.BindVertexArray(modelGPUData.metalVao);
+
+                foreach (TextureConfig conf in metalModel.metalTextureConfig)
+                {
+                    if (conf.id >= 0 && conf.id < textures.Count)
+                    {
+                        GLTexture tex = textureIds[textures[conf.id]];
+                        tex.Bind();
+                        SetTextureWrapMode(conf, tex);
+                    }
+                    else
+                    {
+                        GLTexture.BindNull();
+                    }
+
+                    SetTransparencyMode(conf);
+                    SetTextureMode(conf);
+                    GL.DrawElements(PrimitiveType.Triangles, conf.size, DrawElementsType.UnsignedShort, conf.start * sizeof(ushort));
+                }
+            }
+
             if (selected)
             {
+                GL.BindVertexArray(modelGPUData.vao);
                 shaderTable.colorShader.UseShader();
 
                 GL.Enable(EnableCap.LineSmooth);
@@ -548,7 +574,7 @@ namespace Replanetizer.Renderer
                 shaderTable.colorShader.SetUniform4(UniformName.incolor, 1.0f, 1.0f, 1.0f, 1.0f);
             }
 
-            RenderModel(modelRender, gpuData.vao);
+            RenderModel(modelRender, gpuData);
 
             int subModelCount = modelRender.GetSubModelCount();
             for (int i = 0; i < subModelCount; i++)
@@ -560,7 +586,7 @@ namespace Replanetizer.Renderer
 
                 if (subModel == null || modelGPUData == null) continue;
 
-                RenderModel(subModel, modelGPUData.vao);
+                RenderModel(subModel, modelGPUData);
             }
 
             GLUtil.CheckGlError("MeshRenderer");

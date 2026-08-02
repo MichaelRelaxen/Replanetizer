@@ -21,15 +21,24 @@ namespace Replanetizer.Renderer
         internal readonly int vbo;
         internal readonly int ibo;
         internal readonly List<ModelGPUData?> subModels;
+        internal readonly int metalVao;
+        internal readonly int metalVbo;
+        internal readonly int metalIbo;
+        internal readonly int metalIndexCount;
         internal int References { get; set; }
 
-        private ModelGPUData(Model model, int vao, int vbo, int ibo, List<ModelGPUData?> subModels)
+        private ModelGPUData(Model model, int vao, int vbo, int ibo, List<ModelGPUData?> subModels,
+            int metalVao, int metalVbo, int metalIbo, int metalIndexCount)
         {
             this.model = model;
             this.vao = vao;
             this.vbo = vbo;
             this.ibo = ibo;
             this.subModels = subModels;
+            this.metalVao = metalVao;
+            this.metalVbo = metalVbo;
+            this.metalIbo = metalIbo;
+            this.metalIndexCount = metalIndexCount;
         }
 
         internal static ModelGPUData Create(Model model, ModelGPULayout layout, byte[]? ambientRgbas = null, List<int>? terrainLights = null)
@@ -66,7 +75,86 @@ namespace Replanetizer.Renderer
                 subModels.Add(subModel == null ? null : Create(subModel, layout));
             }
 
-            return new ModelGPUData(model, vao, vbo, ibo, subModels);
+            int metalVao = 0;
+            int metalVbo = 0;
+            int metalIbo = 0;
+            int metalIndexCount = 0;
+            if (model is MetalModel metalModel && metalModel.metalIndexBuffer.Length > 0
+                && metalModel.metalVertexBuffer.Length > 0
+                && (layout != ModelGPULayout.Animated
+                    || (metalModel.metalVertexBoneIds.Length >= metalModel.metalVertexCount
+                        && metalModel.metalVertexBoneWeights.Length >= metalModel.metalVertexCount)))
+            {
+                CreateMetalBuffers(metalModel, layout, out metalVao, out metalVbo, out metalIbo, out metalIndexCount);
+            }
+
+            return new ModelGPUData(model, vao, vbo, ibo, subModels,
+                metalVao, metalVbo, metalIbo, metalIndexCount);
+        }
+
+        private static void CreateMetalBuffers(Model model, ModelGPULayout layout, out int vao, out int vbo, out int ibo, out int indexCount)
+        {
+            MetalModel metalModel = (MetalModel) model;
+            vao = 0;
+            vbo = 0;
+            ibo = 0;
+            indexCount = metalModel.metalIndexBuffer.Length;
+
+            GL.GenVertexArrays(1, out vao);
+            GL.BindVertexArray(vao);
+
+            GL.GenBuffers(1, out ibo);
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, ibo);
+            GL.BufferData(BufferTarget.ElementArrayBuffer,
+                metalModel.metalIndexBuffer.Length * sizeof(ushort), metalModel.metalIndexBuffer, BufferUsageHint.StaticDraw);
+
+            float[] vertices = BuildMetalVertexData(metalModel, layout);
+            GL.GenBuffers(1, out vbo);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
+            GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
+
+            SetupMetalVertexAttribPointers(layout);
+        }
+
+        private static float[] BuildMetalVertexData(MetalModel model, ModelGPULayout layout)
+        {
+            int vertexCount = model.metalVertexBuffer.Length / 8;
+            bool animated = layout == ModelGPULayout.Animated;
+            int stride = animated ? 10 : 8;
+            float[] result = new float[vertexCount * stride];
+            for (int i = 0; i < vertexCount; i++)
+            {
+                for (int j = 0; j < 8; j++)
+                {
+                    result[i * stride + j] = model.metalVertexBuffer[i * 8 + j];
+                }
+
+                if (animated)
+                {
+                    result[i * stride + 8] = BitConverter.UInt32BitsToSingle(model.metalVertexBoneIds[i]);
+                    result[i * stride + 9] = BitConverter.UInt32BitsToSingle(model.metalVertexBoneWeights[i]);
+                }
+            }
+            return result;
+        }
+
+        private static void SetupMetalVertexAttribPointers(ModelGPULayout layout)
+        {
+            if (layout == ModelGPULayout.Animated)
+            {
+                GLUtil.ActivateNumberOfVertexAttribArrays(5);
+                GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 40, 0);
+                GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, 40, 12);
+                GL.VertexAttribPointer(2, 2, VertexAttribPointerType.Float, false, 40, 24);
+                GL.VertexAttribPointer(3, 4, VertexAttribPointerType.UnsignedByte, false, 40, 32);
+                GL.VertexAttribPointer(4, 4, VertexAttribPointerType.UnsignedByte, true, 40, 36);
+                return;
+            }
+
+            GLUtil.ActivateNumberOfVertexAttribArrays(3);
+            GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 32, 0);
+            GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, 32, 12);
+            GL.VertexAttribPointer(2, 2, VertexAttribPointerType.Float, false, 32, 24);
         }
 
         private static float[] BuildVertexData(Model model, ModelGPULayout layout, byte[]? ambientRgbas, List<int>? terrainLights)
@@ -156,6 +244,9 @@ namespace Replanetizer.Renderer
             if (ibo != 0) GL.DeleteBuffer(ibo);
             if (vbo != 0) GL.DeleteBuffer(vbo);
             GL.DeleteVertexArray(vao);
+            if (metalIbo != 0) GL.DeleteBuffer(metalIbo);
+            if (metalVbo != 0) GL.DeleteBuffer(metalVbo);
+            if (metalVao != 0) GL.DeleteVertexArray(metalVao);
         }
     }
 

@@ -37,7 +37,7 @@ namespace LibReplanetizer.Models
             }
         }
 
-        [Category("Attributes"), DisplayName("Texture Configurations")]
+        [Category("Attributes"), DisplayName("Metal Texture Configurations")]
         public List<TextureConfig> metalTextureConfig { get; set; } = new List<TextureConfig>();
 
         protected int GetMetalFaceCount()
