@@ -101,6 +101,7 @@ namespace Replanetizer.Frames
         private PropertyFrame propertyFrame;
         private bool firstFrame = true;
         private Vector2 startSize;
+        private readonly ModelGPUDataCache gpuDataCache = new ModelGPUDataCache();
 
         public ModelFrame(Window wnd, LevelFrame levelFrame, ShaderTable shaderIDTable, Model? model = null) : base(wnd, levelFrame)
         {
@@ -114,7 +115,7 @@ namespace Replanetizer.Frames
             UpdateZoom(0.0f);
             UpdateCamera();
 
-            meshRenderer = new MeshRenderer(shaderIDTable, levelFrame.level.textures, levelFrame.textureIds, levelFrame.level.playerAnimations);
+            meshRenderer = new MeshRenderer(shaderIDTable, levelFrame.level.textures, levelFrame.textureIds, levelFrame.level.playerAnimations, gpuDataCache);
             rendererPayload = new RendererPayload(camera);
 
             sortedMobyModels = new List<Model>(level.mobyModels);
@@ -971,6 +972,7 @@ namespace Replanetizer.Frames
             base.Dispose();
             renderer?.Dispose();
             meshRenderer?.Dispose();
+            gpuDataCache.Dispose();
         }
     }
 }

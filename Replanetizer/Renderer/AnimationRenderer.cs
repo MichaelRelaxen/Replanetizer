@@ -35,17 +35,6 @@ namespace Replanetizer.Renderer
 
         private bool emptyModel = false;
 
-        private int ibo = 0;
-        private int vbo = 0;
-        private int vao = 0;
-
-        private List<int> subModelIBOs = new List<int>();
-        private List<int> subModelVBOs = new List<int>();
-        private List<int> subModelVAOs = new List<int>();
-
-        private bool iboAllocated = false;
-        private bool vboAllocated = false;
-        private bool vaoAllocated = false;
 
         private int light { get; set; }
         private Rgb24 ambient { get; set; }
@@ -67,13 +56,16 @@ namespace Replanetizer.Renderer
         private Frame? currentFrame = null;
         private Frame? previousFrame = null;
         private float frameBlend = 0.0f;
+        private readonly ModelGPUDataCache gpuDataCache;
+        private ModelGPUData? gpuData;
 
-        public AnimationRenderer(ShaderTable shaderTable, List<Texture> textures, Dictionary<Texture, GLTexture> textureIds, List<Animation>? ratchetAnimations = null)
+        public AnimationRenderer(ShaderTable shaderTable, List<Texture> textures, Dictionary<Texture, GLTexture> textureIds, List<Animation>? ratchetAnimations = null, ModelGPUDataCache? gpuDataCache = null)
         {
             this.shaderTable = shaderTable;
             this.textureIds = textureIds;
             this.textures = textures;
             this.ratchetAnimations = ratchetAnimations;
+            this.gpuDataCache = gpuDataCache ?? new ModelGPUDataCache();
         }
 
         public void ChangeTextures(List<Texture> textures, Dictionary<Texture, GLTexture>? textureIds = null)
@@ -110,80 +102,17 @@ namespace Replanetizer.Renderer
 
         public override void Include<T>(List<T> list) => throw new NotImplementedException();
 
-        /// <summary>
-        /// Deletes IBO and VBO if they are allocated.
-        /// </summary>
         private void DeleteBuffers()
         {
-            if (iboAllocated)
-            {
-                GL.DeleteBuffer(ibo);
-                ibo = 0;
-                iboAllocated = false;
-            }
-
-            if (vboAllocated)
-            {
-                GL.DeleteBuffer(vbo);
-                vbo = 0;
-                vboAllocated = false;
-            }
-
-            if (vaoAllocated)
-            {
-                GL.DeleteVertexArray(vao);
-                vao = 0;
-                vaoAllocated = false;
-            }
-
+            gpuDataCache.Release(gpuData);
+            gpuData = null;
             loadedModelID = -1;
-
-            foreach (int subModelIBO in subModelIBOs)
-            {
-                if (subModelIBO != -1)
-                {
-                    GL.DeleteBuffer(subModelIBO);
-                }
-            }
-
-            foreach (int subModelVBO in subModelVBOs)
-            {
-                if (subModelVBO != -1)
-                {
-                    GL.DeleteBuffer(subModelVBO);
-                }
-            }
-
-            foreach (int subModelVAO in subModelVAOs)
-            {
-                if (subModelVAO != -1)
-                {
-                    GL.DeleteVertexArray(subModelVAO);
-                }
-            }
-
-            subModelVAOs.Clear();
-            subModelIBOs.Clear();
-            subModelVBOs.Clear();
         }
 
         public bool IsValid()
         {
             UpdateVars();
             return (emptyModel) ? false : true;
-        }
-
-        /// <summary>
-        /// Sets up the vertex attribute pointers according to the type.
-        /// </summary>
-        private void SetupVertexAttribPointers()
-        {
-            GLUtil.ActivateNumberOfVertexAttribArrays(5);
-            GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 40, 0);
-            GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, 40, 12);
-            GL.VertexAttribPointer(2, 2, VertexAttribPointerType.Float, false, 40, 24);
-            GL.VertexAttribPointer(3, 4, VertexAttribPointerType.UnsignedByte, false, 40, 32);
-            GL.VertexAttribPointer(4, 4, VertexAttribPointerType.UnsignedByte, true, 40, 36);
         }
 
         /// <summary>
@@ -240,113 +169,7 @@ namespace Replanetizer.Renderer
 
             emptyModel = false;
 
-            GL.GenVertexArrays(1, out vao);
-            GL.BindVertexArray(vao);
-
-            // IBO
-            int iboLength = mobyModel.GetIndices().Length * sizeof(ushort);
-            if (iboLength > 0)
-            {
-                GL.GenBuffers(1, out ibo);
-                GL.BindBuffer(BufferTarget.ElementArrayBuffer, ibo);
-                GL.BufferData(BufferTarget.ElementArrayBuffer, iboLength, IntPtr.Zero, BufferUsageHint.StaticDraw);
-                iboAllocated = true;
-            }
-
-            // VBO
-            int vboLength = mobyModel.GetVertices().Length * sizeof(float);
-            vboLength += mobyModel.vertexBoneIds.Length * sizeof(uint);
-            vboLength += mobyModel.vertexBoneWeights.Length * sizeof(uint);
-            if (vboLength > 0)
-            {
-                GL.GenBuffers(1, out vbo);
-                GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
-                GL.BufferData(BufferTarget.ArrayBuffer, vboLength, IntPtr.Zero, BufferUsageHint.StaticDraw);
-                vboAllocated = true;
-            }
-
-            UpdateBuffers(mobyModel, vao);
-
-            // Initialize all submodels aswell, we can then dynamically decide to draw them or not during rendering.
-            int subModelCount = mobyModel.GetSubModelCount();
-            for (int i = 0; i < subModelCount; i++)
-            {
-                Model? subModel = mobyModel.GetSubModel(i);
-
-                if (subModel == null)
-                {
-                    subModelVAOs.Add(-1);
-                    subModelIBOs.Add(-1);
-                    subModelVBOs.Add(-1);
-                    continue;
-                }
-
-                int subModelVao;
-                GL.GenVertexArrays(1, out subModelVao);
-                GL.BindVertexArray(subModelVao);
-
-                // IBO
-                int subModelIboLength = subModel.GetIndices().Length * sizeof(ushort);
-                int subModelIbo = -1;
-                if (subModelIboLength > 0)
-                {
-                    GL.GenBuffers(1, out subModelIbo);
-                    GL.BindBuffer(BufferTarget.ElementArrayBuffer, subModelIbo);
-                    GL.BufferData(BufferTarget.ElementArrayBuffer, subModelIboLength, IntPtr.Zero, BufferUsageHint.StaticDraw);
-                }
-
-                // VBO
-                int subModelVboLength = subModel.GetVertices().Length * sizeof(float);
-                subModelVboLength += subModel.vertexBoneIds.Length * sizeof(uint);
-                subModelVboLength += subModel.vertexBoneWeights.Length * sizeof(uint);
-                int subModelVbo = -1;
-                if (subModelVboLength > 0)
-                {
-                    GL.GenBuffers(1, out subModelVbo);
-                    GL.BindBuffer(BufferTarget.ArrayBuffer, subModelVbo);
-                    GL.BufferData(BufferTarget.ArrayBuffer, subModelVboLength, IntPtr.Zero, BufferUsageHint.StaticDraw);
-                }
-
-                subModelVAOs.Add(subModelVao);
-                subModelIBOs.Add(subModelIbo);
-                subModelVBOs.Add(subModelVbo);
-
-                UpdateBuffers(subModel, subModelVao);
-            }
-        }
-
-        /// <summary>
-        /// Updates the buffers. This is not actually needed as long as mesh manipulations are not possible.
-        /// </summary>
-        private void UpdateBuffers(Model model, int modelVAO)
-        {
-            GL.BindVertexArray(modelVAO);
-
-            ushort[] iboData = model.GetIndices();
-            GL.BufferSubData(BufferTarget.ElementArrayBuffer, IntPtr.Zero, iboData.Length * sizeof(ushort), iboData);
-
-            float[] vboData = model.GetVertices();
-            uint[] boneIDs = model.vertexBoneIds;
-            uint[] boneWeights = model.vertexBoneWeights;
-
-            float[] fullData = new float[vboData.Length + boneIDs.Length + boneWeights.Length];
-
-            for (int i = 0; i < vboData.Length / 8; i++)
-            {
-                fullData[10 * i + 0] = vboData[8 * i + 0];
-                fullData[10 * i + 1] = vboData[8 * i + 1];
-                fullData[10 * i + 2] = vboData[8 * i + 2];
-                fullData[10 * i + 3] = vboData[8 * i + 3];
-                fullData[10 * i + 4] = vboData[8 * i + 4];
-                fullData[10 * i + 5] = vboData[8 * i + 5];
-                fullData[10 * i + 6] = vboData[8 * i + 6];
-                fullData[10 * i + 7] = vboData[8 * i + 7];
-                fullData[10 * i + 8] = BitConverter.UInt32BitsToSingle(boneIDs[i]);
-                fullData[10 * i + 9] = BitConverter.UInt32BitsToSingle(boneWeights[i]);
-            }
-            GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, fullData.Length * sizeof(float), fullData);
-
-            SetupVertexAttribPointers();
+            gpuData = gpuDataCache.Acquire(mobyModel, ModelGPULayout.Animated);
         }
 
         /// <summary>
@@ -509,14 +332,11 @@ namespace Replanetizer.Renderer
 
         public override void Render(RendererPayload payload)
         {
-            if (((mob == null || mob.model == null || mob.memory == null) && mobyModelStandalone == null)) return;
+            if ((mob == null || mob.model == null || mob.memory == null) && mobyModelStandalone == null) return;
 
             UpdateVars();
 
-            if (emptyModel)
-            {
-                return;
-            }
+            if (emptyModel || gpuData == null) return;
 
             if (ComputeCulling(payload.camera, payload.visibility.enableDistanceCulling)) return;
 
@@ -664,7 +484,7 @@ namespace Replanetizer.Renderer
 
             shaderTable.animationShader.SetUniformMatrix4(UniformName.bones, mobyModel.boneCount, ref boneMatrices[0].Row0.X);
 
-            RenderModel(mobyModel, vao);
+            RenderModel(mobyModel, gpuData.vao);
 
             int subModelCount = mobyModel.GetSubModelCount();
             for (int i = 0; i < subModelCount; i++)
@@ -672,10 +492,11 @@ namespace Replanetizer.Renderer
                 if ((payload.visibility.subModelsMask & (1u << i)) == 0) continue;
 
                 Model? subModel = mobyModel.GetSubModel(i);
+                ModelGPUData? modelGPUData = gpuData.subModels[i];
 
-                if (subModel == null) continue;
+                if (subModel == null || modelGPUData == null) continue;
 
-                RenderModel(subModel, subModelVAOs[i]);
+                RenderModel(subModel, modelGPUData.vao);
             }
 
             GLUtil.CheckGlError("AnimationRenderer");
