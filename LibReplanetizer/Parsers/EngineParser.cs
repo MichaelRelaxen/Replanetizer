@@ -147,7 +147,16 @@ namespace LibReplanetizer.Parsers
         public byte[] GetBillboardBytes()
         {
             if (engineHead.game == GameType.RaC1)
-                return ReadArbBytes(engineHead.texture2dPointer, engineHead.soundConfigPointer - engineHead.texture2dPointer);
+            {
+                int endPointer = engineHead.texturePointer;
+
+                // RC1 boot level has no sound config.
+                if (engineHead.soundConfigPointer > 0)
+                    endPointer = engineHead.soundConfigPointer;
+
+                return ReadArbBytes(engineHead.texture2dPointer, endPointer - engineHead.texture2dPointer);
+            }
+
 
             if (engineHead.game == GameType.RaC2 || engineHead.game == GameType.RaC3)
                 return ReadArbBytes(engineHead.texture2dPointer, engineHead.mobyModelPointer - engineHead.texture2dPointer);
