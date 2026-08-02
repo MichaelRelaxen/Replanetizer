@@ -14,29 +14,16 @@ using static LibReplanetizer.Serializers.SerializerFunctions;
 
 namespace LibReplanetizer.Models
 {
-    public class Corncob : MetalModel
+    public class Corncob
     {
-        private bool isValid = false;
         private float unk00;
         private float unk04;
         private float unk08;
         private float unk0C;
         private byte[] vertexBytes = [];
 
-        public enum LoadingHint
+        public Corncob(FileStream fs, int offset, int kernelOffset)
         {
-            Empty,
-            HasVertices,
-            Unknown
-        }
-
-        public Corncob(FileStream fs, int offset, int kernelOffset, LoadingHint hint)
-        {
-            if (kernelOffset == 0xFF)
-                return;
-
-            isValid = true;
-
             byte[] headerBytes = ReadBlock(fs, offset + kernelOffset * 0x10, 0x10);
 
             unk00 = ReadFloat(headerBytes, 0x00);
@@ -44,12 +31,7 @@ namespace LibReplanetizer.Models
             unk08 = ReadFloat(headerBytes, 0x08);
             unk0C = ReadFloat(headerBytes, 0x0C);
 
-            bool loadVertices = hint == LoadingHint.HasVertices;
-
-            if (hint == LoadingHint.Unknown)
-                loadVertices = Array.Exists(headerBytes, b => b != 0);
-
-            if (loadVertices == false)
+            if (Array.Exists(headerBytes, b => b != 0) == false)
                 return;
 
             ushort vertexCount = ReadUshort(ReadBlock(fs, offset + kernelOffset * 0x10 + 0x16, 0x02), 0x00);
@@ -59,8 +41,6 @@ namespace LibReplanetizer.Models
 
         public byte[] Serialize()
         {
-            if (isValid == false) return [];
-
             byte[] bytes = new byte[0x10 + vertexBytes.Length];
 
             WriteFloat(bytes, 0x00, unk00);

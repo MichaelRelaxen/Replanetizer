@@ -200,8 +200,9 @@ namespace LibReplanetizer.Models
         [Category("Attributes"), DisplayName("Bone Datas")]
         public List<BoneData> boneDatas { get; set; } = new List<BoneData>();
         [Category("Attributes"), DisplayName("Bangles")]
-        public List<Bangle> bangles { get; set; } = new List<Bangle>();
+        public List<Bangle?> bangles { get; set; } = new List<Bangle?>();
         public Corncob?[] corncobs { get; set; } = [];
+        private byte[] corncobFallback = [];
 
         public Skeleton? skeleton = null;
         [Category("Attributes"), DisplayName("Is Model")]
@@ -355,11 +356,12 @@ namespace LibReplanetizer.Models
                 {
                     int bangleHeaderOffset = ReadInt(banglesHeader, 0x04 + i * 0x04);
 
+                    Utilities.DebugAssert((occupancyMask & (1 << i)) != 0 == (bangleHeaderOffset > 0), "Occupancy mask discrepancy!");
+
                     if (bangleHeaderOffset > 0)
-                    {
-                        Utilities.DebugAssert((occupancyMask & (1 << i)) != 0, "Occupancy mask discrepancy!");
                         bangles.Add(new Bangle(fs, offset, bangleHeaderOffset, banglesPointer * 0x10 + 0x40 + i * 0x10));
-                    }
+                    else
+                        bangles.Add(null);
                 }
             }
 
@@ -367,27 +369,29 @@ namespace LibReplanetizer.Models
             {
                 byte[] corncobHeaderBytes = ReadBlock(fs, offset + corncobPointer * 0x10, 0x10);
 
-                corncobs = new Corncob?[16];
-
-                for (int i = 0; i < 16; i++)
+                if (corncobHeaderBytes[0] == 0xFF)
                 {
-                    byte kernelOffset = corncobHeaderBytes[i];
+                    corncobs = new Corncob?[16];
 
-                    Corncob.LoadingHint hint;
-                    if (kernelOffset == 0xFF)
+                    for (int i = 0; i < 16; i++)
                     {
-                        hint = Corncob.LoadingHint.Empty;
-                    }
-                    else if (i + 1 < 16)
-                    {
-                        hint = ((corncobHeaderBytes[i + 1] - kernelOffset) > 1) ? Corncob.LoadingHint.HasVertices : Corncob.LoadingHint.Empty;
-                    }
-                    else
-                    {
-                        hint = Corncob.LoadingHint.Unknown;
-                    }
+                        byte kernelOffset = corncobHeaderBytes[i];
 
-                    corncobs[i] = new Corncob(fs, offset + corncobPointer * 0x10, kernelOffset, hint);
+                        if (kernelOffset == 0xFF)
+                        {
+                            corncobs[i] = null;
+                            continue;
+                        }
+
+                        corncobs[i] = new Corncob(fs, offset + corncobPointer * 0x10, kernelOffset);
+                    }
+                }
+                else
+                {
+                    // Some mobies have a non 0xFF first entry, those seem to have completely "broken" corncob data.
+                    // In that case we simply copy all the expected corncob data and "call it a day".
+                    int corncobFallbackSize = 0x10 + 15 * 0x10;
+                    corncobFallback = ReadBlock(fs, offset + corncobPointer * 0x10, corncobFallbackSize);
                 }
             }
 
@@ -509,25 +513,46 @@ namespace LibReplanetizer.Models
             int textureConfigOffset = SeekReserve(fs, textureConfig.Count * 0x10, 0x01);
             int metalTextureConfigOffset = SeekReserve(fs, metalTextureConfig.Count * 0x10, 0x01);
 
-            int vertOffset = SeekWrite(fs, SerializeVertices(), 0x80);
+            byte[] vertexBytes = SerializeVertices();
+            byte[] faceBytes = GetFaceBytes();
+
+            int vertOffset = SeekWriteForced(fs, vertexBytes, (vertexBytes.Length > 0) ? 0x80 : 0x10);
             int metalVertOffset = SeekWrite(fs, SerializeMetalVertices(), 0x01);
-            int faceOffset = SeekWrite(fs, GetFaceBytes());
+            int faceOffset = SeekWriteForced(fs, faceBytes);
             int metalIndexOffset = SeekWrite(fs, SerializeMetalIndices(), 0x01);
 
             int banglesPointer = 0;
             if (bangles.Count > 0)
             {
                 banglesPointer = SeekReserve(fs, 0x40, 0x10);
-                int unkBanglesDataPointer = SeekReserve(fs, 0x10 * bangles.Count, 0x01);
+
+                int actualBangleCount = 0;
+                for (int i = 0; i < bangles.Count; i++)
+                    actualBangleCount += (bangles[i] != null) ? 1 : 0;
+
+                int unkBanglesDataPointer = SeekReserve(fs, 0x10 * actualBangleCount, 0x01);
 
                 byte[] banglesOffsetsBytes = new byte[0x40];
 
+                int bangleIndex = 0;
                 ushort occupancyMask = 0;
                 for (int i = 0; i < bangles.Count; i++)
                 {
-                    int bangleOffset = bangles[i].WriteBytes(fs, headerOffset, unkBanglesDataPointer + i * 0x10);
+                    Bangle? bangle = bangles[i];
+
+                    int bangleOffset;
+                    if (bangle != null)
+                    {
+                        bangleOffset = bangle.WriteBytes(fs, headerOffset, unkBanglesDataPointer + bangleIndex * 0x10);
+                        bangleIndex++;
+                    }
+                    else
+                    {
+                        bangleOffset = 0;
+                    }
+
                     WriteInt(banglesOffsetsBytes, 0x04 + i * 0x04, GetRelativeOffset(bangleOffset, headerOffset));
-                    occupancyMask |= (ushort) (1 << i);
+                    occupancyMask |= (bangleOffset > 0) ? (ushort) (1 << i) : (ushort) 0;
                 }
 
                 WriteUshort(banglesOffsetsBytes, 0x00, unkBanglesData);
@@ -606,7 +631,7 @@ namespace LibReplanetizer.Models
 
             WriteBytesAtOffset(fs, animationOffsetsBytes, animationOffsetsOffset);
 
-            int corncobPointer = 0;
+            int corncobPointer;
             if (corncobs.Length == 16)
             {
                 corncobPointer = SeekReserve(fs, 0x10);
@@ -632,6 +657,10 @@ namespace LibReplanetizer.Models
                 }
 
                 WriteBytesAtOffset(fs, corncobHeaderBytes, corncobPointer);
+            }
+            else
+            {
+                corncobPointer = SeekWrite(fs, corncobFallback, 0x10);
             }
 
             // Header

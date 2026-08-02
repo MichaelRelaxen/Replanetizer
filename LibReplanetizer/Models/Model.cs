@@ -173,7 +173,7 @@ namespace LibReplanetizer.Models
         public byte[] SerializeVertices()
         {
             int elemSize = 0x28;
-            byte[] outBytes = new byte[(vertexBuffer.Length / 8) * elemSize];
+            byte[] outBytes = new byte[vertexCount * elemSize];
 
             for (int i = 0; i < vertexBuffer.Length / 8; i++)
             {

@@ -70,12 +70,11 @@ namespace LibReplanetizer.Models
             //Get vertex buffer float[vertX, vertY, vertZ, normX, normY, normZ] and UV array float[U, V] * vertexCount
             vertexBuffer = GetVertices(fs, vertexPointer, uvPointer, vertexCount, TIEVERTELEMSIZE, TIEUVELEMSIZE);
 
+            int unkVertexUVsOffset = AlignAddressUp(uvPointer + TIEUVELEMSIZE * vertexCount, 0x10);
+
             // Sometimes there are additional UV, it is unknown what they are used for.
-            if (indexPointer > AlignAddressUp(uvPointer + TIEUVELEMSIZE * vertexCount, 0x10))
-            {
-                int unkVertexUVsOffset = uvPointer + TIEUVELEMSIZE * vertexCount;
+            if (indexPointer > unkVertexUVsOffset)
                 unkVertexUVs = ReadBlock(fs, unkVertexUVsOffset, indexPointer - unkVertexUVsOffset);
-            }
 
             //Get index buffer ushort[i] * faceCount
             indexBuffer = GetIndices(fs, indexPointer, indexCount);
