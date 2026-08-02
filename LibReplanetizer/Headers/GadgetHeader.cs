@@ -20,6 +20,7 @@ namespace LibReplanetizer.Headers
 
         public GadgetHeader(FileStream gadgetFile)
         {
+            // TODO: These offsets and sizes seem inconsistent!
             int gadgetCount = ReadInt(ReadBlock(gadgetFile, 0x3C0, 0x04), 0x00);
 
             byte[] gadgetHeaderBytes = ReadBlock(gadgetFile, 0x00, 0x3D0);

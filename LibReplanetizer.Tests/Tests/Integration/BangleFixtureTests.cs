@@ -43,8 +43,13 @@ namespace LibReplanetizer.Tests.Integration
             var model = GetFirstModelWithBangles(parser);
             Skip.If(model == null, "No moby model with bangles found in this level.");
             foreach (var bangle in model!.bangles)
+            {
+                if (bangle == null)
+                    continue;
+
                 Assert.True(bangle.vertexBuffer.Length > 0 || bangle.metalVertexBuffer.Length > 0,
                     "Bangle should have vertices in at least one buffer.");
+            }
         }
 
         [SkippableFact]

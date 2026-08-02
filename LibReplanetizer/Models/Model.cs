@@ -117,15 +117,23 @@ namespace LibReplanetizer.Models
             int neg = 0;
             for (int i = 0; i < textureCount; i++)
             {
+                int configOffset = i * elemSize;
+
                 TextureConfig textureConfig = new TextureConfig();
-                textureConfig.id = ReadInt(texBlock, (i * elemSize) + idOffset);
-                textureConfig.start = ReadInt(texBlock, (i * elemSize) + startOffset);
-                textureConfig.size = ReadInt(texBlock, (i * elemSize) + sizeOffset);
-                textureConfig.mode = ReadInt(texBlock, (i * elemSize) + modeOffset);
+                textureConfig.id = ReadInt(texBlock, configOffset + idOffset);
+                textureConfig.start = ReadInt(texBlock, configOffset + startOffset);
+                textureConfig.size = ReadInt(texBlock, configOffset + sizeOffset);
+                textureConfig.mode = ReadInt(texBlock, configOffset + modeOffset);
                 if (negate)
                 {
                     if (i == 0) neg = textureConfig.start;
                     textureConfig.start -= neg;
+                }
+
+                if (elemSize == 0x18)
+                {
+                    textureConfig.unk1 = ReadInt(texBlock, configOffset + 0x04);
+                    textureConfig.unk2 = ReadInt(texBlock, configOffset + 0x10);
                 }
 
                 textureConfigs.Add(textureConfig);
@@ -165,7 +173,7 @@ namespace LibReplanetizer.Models
         public byte[] SerializeVertices()
         {
             int elemSize = 0x28;
-            byte[] outBytes = new byte[(vertexBuffer.Length / 8) * elemSize];
+            byte[] outBytes = new byte[vertexCount * elemSize];
 
             for (int i = 0; i < vertexBuffer.Length / 8; i++)
             {
@@ -189,7 +197,7 @@ namespace LibReplanetizer.Models
         public byte[] SerializeTieVertices()
         {
             int elemSize = 0x18;
-            byte[] outBytes = new byte[(vertexBuffer.Length / 8) * elemSize];
+            byte[] outBytes = new byte[vertexCount * elemSize];
 
             for (int i = 0; i < vertexBuffer.Length / 8; i++)
             {
@@ -207,7 +215,7 @@ namespace LibReplanetizer.Models
         public byte[] SerializeUVs()
         {
             int elemSize = 0x08;
-            byte[] outBytes = new byte[(vertexBuffer.Length / 8) * elemSize];
+            byte[] outBytes = new byte[vertexCount * elemSize];
 
             for (int i = 0; i < vertexBuffer.Length / 8; i++)
             {

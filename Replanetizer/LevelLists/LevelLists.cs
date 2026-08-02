@@ -32,9 +32,21 @@ public static class LevelLists
         { "NPEA00423", "RC4" },
         { "NPUA80646", "RC4" },
     };
+
+    private static readonly Dictionary<string, string> GENERIC_MAPPINGS = new() {
+        { "rc1", "RC1" },
+        { "rc2", "RC2" },
+        { "rc3", "RC3" },
+        { "rc4", "RC4" },
+    };
+
+
     public static string? DetectGameFile(string path)
     {
         foreach (var entry in GAME_IDS)
+            if (path.Contains(entry.Key))
+                return entry.Value;
+        foreach (var entry in GENERIC_MAPPINGS)
             if (path.Contains(entry.Key))
                 return entry.Value;
         return null;

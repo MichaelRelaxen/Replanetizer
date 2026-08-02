@@ -35,7 +35,7 @@ namespace LibReplanetizer
         public List<Model> gadgetModels;
         public List<Model> armorModels;
         public List<MobyModel> spaceshipModels;
-        public Model collisionEngine;
+        public Collision collisionEngine;
         public List<Collision> collisionChunks;
         public List<Texture> textures;
         public List<Texture> spaceshipTextures;
@@ -44,8 +44,6 @@ namespace LibReplanetizer
         public SkyboxModel skybox;
 
         public byte[] renderDefBytes;
-        public byte[] collBytesEngine;
-        public List<byte[]> collBytesChunks;
         public byte[] billboardBytes;
         public byte[] soundConfigBytes;
 
@@ -78,6 +76,8 @@ namespace LibReplanetizer
         public List<LanguageData> japanese;
         public List<LanguageData> korean;
 
+        public byte[] unk1;
+        public byte[] unk2;
         public byte[] unk3;
         public byte[] unk4;
         public byte[] unk5;
@@ -107,7 +107,7 @@ namespace LibReplanetizer
         public List<EnvTransition> envTransitions;
         public List<SoundInstance> soundInstances;
         public List<GrindPath> grindPaths;
-        public List<GlobalPvarBlock> type4Cs;
+        public List<GlobalPvarBlock> pvarBlocks;
 
         public List<byte[]> pVars;
         public List<Cuboid> cuboids;
@@ -119,6 +119,8 @@ namespace LibReplanetizer
         public List<int> mobyIds;
         public List<int> tieIds;
         public List<int> shrubIds;
+
+        public int pvarBlocksHeaderPadding = 0x10;
 
         ~Level()
         {
@@ -141,7 +143,6 @@ namespace LibReplanetizer
 
                 //REMOVE THESE ASAP!!!!!111
                 renderDefBytes = engineParser.GetRenderDefBytes();
-                collBytesEngine = engineParser.GetCollisionBytes();
                 billboardBytes = engineParser.GetBillboardBytes();
                 soundConfigBytes = engineParser.GetSoundConfigBytes();
 
@@ -174,13 +175,6 @@ namespace LibReplanetizer
                 spaceshipTextures = spaceshipData.textures;
                 LOGGER.Debug("Added {0} spaceship models", spaceshipModels.Count);
 
-                foreach (MobyModel model in spaceshipModels)
-                {
-                    mobyModels.RemoveAll(x => x.id == model.id);
-                }
-
-                mobyModels.AddRange(spaceshipModels);
-
                 LOGGER.Debug("Parsing ties...");
                 ties = engineParser.GetTies(tieModels);
                 LOGGER.Debug("Added {0} ties", ties.Count);
@@ -210,13 +204,14 @@ namespace LibReplanetizer
 
                 collisionEngine = engineParser.GetCollisionModel();
 
+                unk1 = engineParser.GetUnk1Bytes();
+                unk2 = engineParser.GetUnk2Bytes();
                 unk3 = engineParser.GetUnk3Bytes();
                 unk4 = engineParser.GetUnk4Bytes();
                 unk5 = engineParser.GetUnk5Bytes();
                 unk8 = engineParser.GetUnk8Bytes();
                 unk9 = engineParser.GetUnk9Bytes();
             }
-
 
             // Gameplay elements
             using (GameplayParser gameplayParser = new GameplayParser(game, path + @"/gameplay_ntsc"))
@@ -266,7 +261,7 @@ namespace LibReplanetizer
                 soundInstances = gameplayParser.GetSoundInstances();
                 grindPaths = gameplayParser.GetGrindPaths();
 
-                type4Cs = gameplayParser.GetType4Cs();
+                pvarBlocks = gameplayParser.GetPvarBlocks(ref pvarBlocksHeaderPadding);
                 pvarScratchPads = gameplayParser.GetPvarScratchPads();
                 pvarRewires = gameplayParser.GetPvarRewires();
 
@@ -285,7 +280,6 @@ namespace LibReplanetizer
 
             terrainChunks = new List<Terrain>();
             collisionChunks = new List<Collision>();
-            collBytesChunks = new List<byte[]>();
 
             for (int i = 0; i < 5; i++)
             {
@@ -296,7 +290,6 @@ namespace LibReplanetizer
                 {
                     terrainChunks.Add(chunkParser.GetTerrainModels());
                     collisionChunks.Add(chunkParser.GetCollisionModel());
-                    collBytesChunks.Add(chunkParser.GetCollBytes());
                 }
             }
 
@@ -338,7 +331,7 @@ namespace LibReplanetizer
                 if (model != null)
                 {
                     // Set a canonical id so Replanetizer can more easily differentiate between armor models
-                    model.id = (short)armorModels.Count;
+                    model.id = (short) armorModels.Count;
                     armorModels.Add(model);
                 }
 
@@ -418,8 +411,6 @@ namespace LibReplanetizer
                 vramParser.GetTextures(textures);
             }
 
-            textures.AddRange(spaceshipTextures);
-
             LOGGER.Info("Level parsing done");
             valid = true;
         }
@@ -479,6 +470,15 @@ namespace LibReplanetizer
                     mobyModel.animations = playerAnimations;
                 }
             });
+
+            foreach (MobyModel model in spaceshipModels)
+            {
+                mobyModels.RemoveAll(x => x.id == model.id);
+            }
+
+            mobyModels.AddRange(spaceshipModels);
+
+            textures.AddRange(spaceshipTextures);
         }
 
         public void Dispose()
@@ -494,6 +494,10 @@ namespace LibReplanetizer
         {
             string? directory;
             if (File.Exists(outputFile) && File.GetAttributes(outputFile).HasFlag(FileAttributes.Directory))
+            {
+                directory = outputFile;
+            }
+            else if (Directory.Exists(outputFile))
             {
                 directory = outputFile;
             }

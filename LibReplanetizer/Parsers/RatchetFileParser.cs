@@ -26,17 +26,21 @@ namespace LibReplanetizer.Parsers
 
         protected List<Model> GetMobyModels(GameType game, int mobyModelPointer)
         {
-            //Get the moby count from the start of the section
-            int mobyModelCount = ReadInt(ReadBlock(fileStream, mobyModelPointer, 4), 0);
+            byte[] headerBlock = ReadBlock(fileStream, mobyModelPointer, 0x04);
+
+            int mobyModelCount = ReadInt(headerBlock, 0x00);
 
             List<Model> mobyModels = new List<Model>(mobyModelCount);
 
-            //Each moby is stored as a [MobyID, offset] pair
-            byte[] mobyIDBlock = ReadBlock(fileStream, mobyModelPointer + 4, mobyModelCount * 8);
+            byte[] mobyIDBlock = ReadBlock(fileStream, mobyModelPointer + 4, mobyModelCount * 0x08);
             for (int i = 0; i < mobyModelCount; i++)
             {
-                short modelID = ReadShort(mobyIDBlock, (i * 8) + 2);
-                int offset = ReadInt(mobyIDBlock, (i * 8) + 4);
+                int mobyIDOffset = i * 0x08;
+
+                Utilities.DebugAssert(ReadShort(mobyIDBlock, mobyIDOffset + 0x00) == 0, "Header[0x00] is not 0!");
+                short modelID = ReadShort(mobyIDBlock, mobyIDOffset + 0x02);
+                int offset = ReadInt(mobyIDBlock, mobyIDOffset + 0x04);
+
                 mobyModels.Add(new MobyModel(fileStream, game, modelID, offset));
             }
             return mobyModels;
@@ -221,12 +225,17 @@ namespace LibReplanetizer.Parsers
         {
             List<Model> gadgetModels = new List<Model>(count);
 
-            //Each moby is stored as a [MobyID, offset] pair
             byte[] mobyIDBlock = ReadBlock(fileStream, gadgetPointer, count * 0x10);
             for (int i = 0; i < count; i++)
             {
-                short modelID = ReadShort(mobyIDBlock, (i * 0x10) + 2);
-                int offset = ReadInt(mobyIDBlock, (i * 0x10) + 4);
+                int modelHeaderOffset = i * 0x10;
+
+                Utilities.DebugAssert(ReadShort(mobyIDBlock, modelHeaderOffset + 0x00) == 0, "Header[0x00] is not 0!");
+                short modelID = ReadShort(mobyIDBlock, modelHeaderOffset + 0x02);
+                int offset = ReadInt(mobyIDBlock, modelHeaderOffset + 0x04);
+                int length = ReadInt(mobyIDBlock, modelHeaderOffset + 0x08);
+                Utilities.DebugAssert(ReadInt(mobyIDBlock, modelHeaderOffset + 0x0C) == 0, "Header[0x0C] is not 0!");
+
                 gadgetModels.Add(new MobyModel(fileStream, game, modelID, offset));
             }
             return gadgetModels;

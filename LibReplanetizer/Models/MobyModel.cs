@@ -10,9 +10,149 @@ using LibReplanetizer.Models.Animations;
 using System.Collections.Generic;
 using System.IO;
 using static LibReplanetizer.DataFunctions;
+using static LibReplanetizer.Serializers.SerializerFunctions;
 
 namespace LibReplanetizer.Models
 {
+    public class Type10CollisionEntry1
+    {
+        public ushort[] vals = new ushort[16];
+
+        public Type10CollisionEntry1() { }
+
+        public Type10CollisionEntry1(byte[] data, int offset)
+        {
+            for (int i = 0; i < 16; i++)
+                vals[i] = ReadUshort(data, offset + i * 2);
+        }
+
+        public byte[] Serialize()
+        {
+            byte[] outbytes = new byte[32];
+            for (int i = 0; i < 16; i++)
+                WriteUshort(outbytes, i * 2, vals[i]);
+            return outbytes;
+        }
+    }
+
+    public class Type10CollisionEntry2
+    {
+        public ushort[] vals = new ushort[2];
+
+        public Type10CollisionEntry2() { }
+
+        public Type10CollisionEntry2(byte[] data, int offset)
+        {
+            for (int i = 0; i < 2; i++)
+                vals[i] = ReadUshort(data, offset + i * 2);
+        }
+
+        public byte[] Serialize()
+        {
+            byte[] outbytes = new byte[4];
+            for (int i = 0; i < 2; i++)
+                WriteUshort(outbytes, i * 2, vals[i]);
+            return outbytes;
+        }
+    }
+
+    public class Type10CollisionEntry3
+    {
+        public ushort[] vals = new ushort[4];
+
+        public Type10CollisionEntry3() { }
+
+        public Type10CollisionEntry3(byte[] data, int offset)
+        {
+            for (int i = 0; i < 4; i++)
+                vals[i] = ReadUshort(data, offset + i * 2);
+        }
+
+        public byte[] Serialize()
+        {
+            byte[] outbytes = new byte[8];
+            for (int i = 0; i < 4; i++)
+                WriteUshort(outbytes, i * 2, vals[i]);
+            return outbytes;
+        }
+    }
+
+    public class Type10Collision
+    {
+        public int meta { get; set; }
+        public int length1 { get; set; }
+        public int length2 { get; set; }
+        public int length3 { get; set; }
+
+        public List<Type10CollisionEntry1> data1 { get; set; }
+        public List<Type10CollisionEntry2> data2 { get; set; }
+        public List<Type10CollisionEntry3> data3 { get; set; }
+
+        public Type10Collision()
+        {
+            data1 = new List<Type10CollisionEntry1>();
+            data2 = new List<Type10CollisionEntry2>();
+            data3 = new List<Type10CollisionEntry3>();
+        }
+
+        public Type10Collision(byte[] data)
+        {
+            meta = ReadInt(data, 0x00);
+            length1 = ReadInt(data, 0x04);
+            length2 = ReadInt(data, 0x08);
+            length3 = ReadInt(data, 0x0C);
+
+            data1 = new List<Type10CollisionEntry1>();
+            for (int i = 0; i < length1; i += 32)
+                data1.Add(new Type10CollisionEntry1(data, 0x10 + i));
+
+            data2 = new List<Type10CollisionEntry2>();
+            for (int i = 0; i < length2; i += 4)
+                data2.Add(new Type10CollisionEntry2(data, 0x10 + length1 + i));
+
+            data3 = new List<Type10CollisionEntry3>();
+            for (int i = 0; i < length3; i += 8)
+                data3.Add(new Type10CollisionEntry3(data, 0x10 + length1 + length2 + i));
+        }
+
+        public int GetLength()
+        {
+            return 0x10 + length1 + length2 + length3;
+        }
+
+        public byte[] Serialize()
+        {
+            length1 = data1.Count * 32;
+            length2 = data2.Count * 4;
+            length3 = data3.Count * 8;
+
+            byte[] outbytes = new byte[GetLength()];
+            WriteInt(outbytes, 0x00, meta);
+            WriteInt(outbytes, 0x04, length1);
+            WriteInt(outbytes, 0x08, length2);
+            WriteInt(outbytes, 0x0C, length3);
+
+            int offset = 0x10;
+            foreach (var entry in data1)
+            {
+                entry.Serialize().CopyTo(outbytes, offset);
+                offset += 32;
+            }
+            foreach (var entry in data2)
+            {
+                entry.Serialize().CopyTo(outbytes, offset);
+                offset += 4;
+            }
+            foreach (var entry in data3)
+            {
+                entry.Serialize().CopyTo(outbytes, offset);
+                offset += 8;
+            }
+
+            return outbytes;
+        }
+    }
+
     public class MobyModel : MetalModel
     {
         private static readonly NLog.Logger LOGGER = NLog.LogManager.GetCurrentClassLogger();
@@ -22,8 +162,6 @@ namespace LibReplanetizer.Models
         const int TEXTUREELEMENTSIZE = 0x10;
         const int MESHHEADERSIZE = 0x20;
         const int HEADERSIZE = 0x48;
-
-        public int null1 { get; set; }
 
         [Category("Attributes"), DisplayName("Bone Count")]
         public byte boneCount { get; set; }
@@ -35,8 +173,6 @@ namespace LibReplanetizer.Models
         public byte lpRenderDist { get; set; }            // Low poly render distance
         public byte count8 { get; set; }
 
-        public int null2 { get; set; }
-
         [Category("Culling Parameters"), DisplayName("Position X")]
         public float cullingX { get; set; }
         [Category("Culling Parameters"), DisplayName("Position Y")]
@@ -47,7 +183,6 @@ namespace LibReplanetizer.Models
         public float cullingRadius { get; set; }
 
         public uint color2 { get; set; }               // RGBA color
-        public byte unk1 { get; set; }
         public uint unk6 { get; set; }
 
         public ushort vertexCount2 { get; set; }
@@ -65,17 +200,21 @@ namespace LibReplanetizer.Models
         [Category("Attributes"), DisplayName("Bone Datas")]
         public List<BoneData> boneDatas { get; set; } = new List<BoneData>();
         [Category("Attributes"), DisplayName("Bangles")]
-        public List<Bangle> bangles { get; set; } = new List<Bangle>();
+        public List<Bangle?> bangles { get; set; } = new List<Bangle?>();
+        public Corncob?[] corncobs { get; set; } = [];
+        private byte[] corncobFallback = [];
 
         public Skeleton? skeleton = null;
         [Category("Attributes"), DisplayName("Is Model")]
         public bool isModel { get; set; } = true;
+        private bool hasMeshData = false;
+        private ushort unkBanglesData = 0;
 
         public override int GetSubModelCount() { return bangles.Count; }
         public override Model? GetSubModel(int index) { return (index < bangles.Count) ? (Model?) bangles[index] : null; }
 
         // Unparsed sections
-        public byte[] type10Block = { };                  // Hitbox
+        public Type10Collision? collisionData = null;                  // Hitbox
 
         private void GetMeshData(FileStream fs, int headerSize, int headerPointer, int baseOffset)
         {
@@ -88,7 +227,7 @@ namespace LibReplanetizer.Models
             int vertPointer = baseOffset + ReadInt(meshHeader, 0x10);
             int indexPointer = baseOffset + ReadInt(meshHeader, 0x14);
             ushort vertexCount = ReadUshort(meshHeader, 0x18);
-            ushort metalVertCount = ReadUshort(meshHeader, 0x1a);
+            ushort metalVertCount = ReadUshort(meshHeader, 0x1A);
 
             vertexCount2 = ReadUshort(meshHeader, 0x1C);     //These vertices are not affected by color2
 
@@ -127,6 +266,8 @@ namespace LibReplanetizer.Models
             {
                 metalIndexBuffer = GetIndices(fs, metalIndexPointer, metalFaceCount);
             }
+
+            hasMeshData = true;
         }
 
 
@@ -145,7 +286,8 @@ namespace LibReplanetizer.Models
             byte[] headBlock = ReadBlock(fs, offset, HEADERSIZE);
 
             int meshPointer = ReadInt(headBlock, 0x00);
-            null1 = ReadInt(headBlock, 0x04);
+
+            Utilities.DebugAssert(ReadInt(headBlock, 0x04) == 0, "Header[0x04] is not 0!");
 
             boneCount = headBlock[0x08];
             lpBoneCount = headBlock[0x09];
@@ -159,18 +301,17 @@ namespace LibReplanetizer.Models
             lpRenderDist = headBlock[0x0E];
             count8 = headBlock[0x0F];
 
-            int type10Pointer = ReadInt(headBlock, 0x10);
+            int collisionPointer = ReadInt(headBlock, 0x10);
             int boneMatrixPointer = ReadInt(headBlock, 0x14);
             int boneDataPointer = ReadInt(headBlock, 0x18);
             int attachmentPointer = ReadInt(headBlock, 0x1C);
 
-            null2 = ReadInt(headBlock, 0x20);
+            Utilities.DebugAssert(ReadInt(headBlock, 0x20) == 0, "Header[0x20] is not 0!");
+
             size = ReadFloat(headBlock, 0x24);
             int soundPointer = ReadInt(headBlock, 0x28);
             ushort banglesPointer = ReadUshort(headBlock, 0x2C);
             ushort corncobPointer = ReadUshort(headBlock, 0x2E);
-
-            if (null1 != 0 || null2 != 0) { LOGGER.Warn("Warning: null in model header wan't null"); }
 
             cullingX = ReadFloat(headBlock, 0x30);
             cullingY = ReadFloat(headBlock, 0x34);
@@ -202,30 +343,69 @@ namespace LibReplanetizer.Models
             // Bangles
             if (banglesPointer > 0)
             {
-                byte[] banglesHeader = ReadBlock(fs, offset + banglesPointer * 0x10, 0x04);
+                byte[] banglesHeader = ReadBlock(fs, offset + banglesPointer * 0x10, 0x40);
 
-                // Wrench always loads 15 bangles
-                byte banglesCount = 15;
+                unkBanglesData = ReadUshort(banglesHeader, 0x00);
+                ushort occupancyMask = ReadUshort(banglesHeader, 0x02);
 
-                byte[] banglesIndices = ReadBlock(fs, offset + banglesPointer * 0x10 + 0x04, banglesCount * 0x04);
+                int banglesCount = 32 - System.Numerics.BitOperations.LeadingZeroCount(occupancyMask);
+
+                Utilities.DebugAssert(banglesCount <= 15, "More bangles than expected!");
 
                 for (int i = 0; i < banglesCount; i++)
                 {
-                    int bangleHeaderOffset = ReadInt(banglesIndices, i * 0x04);
+                    int bangleHeaderOffset = ReadInt(banglesHeader, 0x04 + i * 0x04);
+
+                    Utilities.DebugAssert((occupancyMask & (1 << i)) != 0 == (bangleHeaderOffset > 0), "Occupancy mask discrepancy!");
 
                     if (bangleHeaderOffset > 0)
+                        bangles.Add(new Bangle(fs, offset, bangleHeaderOffset, banglesPointer * 0x10 + 0x40 + i * 0x10));
+                    else
+                        bangles.Add(null);
+                }
+            }
+
+            if (corncobPointer > 0)
+            {
+                byte[] corncobHeaderBytes = ReadBlock(fs, offset + corncobPointer * 0x10, 0x10);
+
+                if (corncobHeaderBytes[0] == 0xFF)
+                {
+                    corncobs = new Corncob?[16];
+
+                    for (int i = 0; i < 16; i++)
                     {
-                        bangles.Add(new Bangle(fs, offset, bangleHeaderOffset));
+                        byte kernelOffset = corncobHeaderBytes[i];
+
+                        if (kernelOffset == 0xFF)
+                        {
+                            corncobs[i] = null;
+                            continue;
+                        }
+
+                        corncobs[i] = new Corncob(fs, offset + corncobPointer * 0x10, kernelOffset);
                     }
+                }
+                else
+                {
+                    // Some mobies have a non 0xFF first entry, those seem to have completely "broken" corncob data.
+                    // In that case we simply copy all the expected corncob data and "call it a day".
+                    int corncobFallbackSize = 0x10 + 15 * 0x10;
+                    corncobFallback = ReadBlock(fs, offset + corncobPointer * 0x10, corncobFallbackSize);
                 }
             }
 
             // Type 10 ( has something to do with collision )
-            if (type10Pointer > 0)
+            if (collisionPointer > 0)
             {
-                byte[] type10Head = ReadBlock(fs, offset + type10Pointer, 0x10);
-                int type10Length = ReadInt(type10Head, 0x04) + ReadInt(type10Head, 0x08) + ReadInt(type10Head, 0x0C);
-                type10Block = ReadBlock(fs, offset + type10Pointer, 0x10 + type10Length);
+                byte[] type10Head = ReadBlock(fs, offset + collisionPointer, 0x10);
+                int type10LengthA = ReadInt(type10Head, 0x04);
+                int type10LengthB = ReadInt(type10Head, 0x08);
+                int type10LengthC = ReadInt(type10Head, 0x0C);
+                int type10Length = type10LengthA + type10LengthB + type10LengthC;
+
+                byte[] type10Block = ReadBlock(fs, offset + collisionPointer, 0x10 + type10Length);
+                collisionData = new Type10Collision(type10Block);
             }
 
             // Bone matrix
@@ -316,217 +496,250 @@ namespace LibReplanetizer.Models
             return model;
         }
 
-        public byte[] Serialize(int offset)
+        public int WriteBytes(FileStream fs)
         {
-            // Sometimes the mobys offset is not 0x10 aligned with the file,
-            // but the internal offsets are supposed to be
-            int alignment = 0x10 - (offset % 0x10);
-            if (alignment == 0x10) alignment = 0;
+            int headerOffset = SeekReserve(fs, HEADERSIZE, 0x01);
+            int animationOffsetsOffset = SeekReserve(fs, 0x04 * animations.Count, 0x01);
 
             // We need to reserve some room for Ratchet's menu animations
             // this is hardcoded as 0x1c in the ELF, thus we have to just check
             // if the id of the current model is 0 I.E Ratchet, and add this offset
-            int stupidOffset = 0;
             if (id == 0)
-            {
-                stupidOffset = 0x20 * 4;
-            }
+                SeekReserve(fs, 0x20 * 4, 0x01);
+            else
+                SeekReserve(fs, 0x20, 0x01);
+
+            int meshDataOffset = SeekReserve(fs, hasMeshData ? 0x20 : 0);
+            int textureConfigOffset = SeekReserve(fs, textureConfig.Count * 0x10, 0x01);
+            int metalTextureConfigOffset = SeekReserve(fs, metalTextureConfig.Count * 0x10, 0x01);
 
             byte[] vertexBytes = SerializeVertices();
-            byte[] metalVertexBytes = SerializeMetalVertices();
             byte[] faceBytes = GetFaceBytes();
-            byte[] metalIndexBytes = SerializeMetalIndices();
 
-            //sounds
-            byte[] soundBytes = new byte[modelSounds.Count * 0x20];
-            for (int i = 0; i < modelSounds.Count; i++)
+            int vertOffset = SeekWriteForced(fs, vertexBytes, (vertexBytes.Length > 0) ? 0x80 : 0x10);
+            int metalVertOffset = SeekWrite(fs, SerializeMetalVertices(), 0x01);
+            int faceOffset = SeekWriteForced(fs, faceBytes);
+            int metalIndexOffset = SeekWrite(fs, SerializeMetalIndices(), 0x01);
+
+            int banglesPointer = 0;
+            if (bangles.Count > 0)
             {
-                byte[] soundByte = modelSounds[i].Serialize();
-                soundByte.CopyTo(soundBytes, i * 0x20);
+                banglesPointer = SeekReserve(fs, 0x40, 0x10);
+
+                int actualBangleCount = 0;
+                for (int i = 0; i < bangles.Count; i++)
+                    actualBangleCount += (bangles[i] != null) ? 1 : 0;
+
+                int unkBanglesDataPointer = SeekReserve(fs, 0x10 * actualBangleCount, 0x01);
+
+                byte[] banglesOffsetsBytes = new byte[0x40];
+
+                int bangleIndex = 0;
+                ushort occupancyMask = 0;
+                for (int i = 0; i < bangles.Count; i++)
+                {
+                    Bangle? bangle = bangles[i];
+
+                    int bangleOffset;
+                    if (bangle != null)
+                    {
+                        bangleOffset = bangle.WriteBytes(fs, headerOffset, unkBanglesDataPointer + bangleIndex * 0x10);
+                        bangleIndex++;
+                    }
+                    else
+                    {
+                        bangleOffset = 0;
+                    }
+
+                    WriteInt(banglesOffsetsBytes, 0x04 + i * 0x04, GetRelativeOffset(bangleOffset, headerOffset));
+                    occupancyMask |= (bangleOffset > 0) ? (ushort) (1 << i) : (ushort) 0;
+                }
+
+                WriteUshort(banglesOffsetsBytes, 0x00, unkBanglesData);
+                WriteUshort(banglesOffsetsBytes, 0x02, occupancyMask);
+
+                WriteBytesAtOffset(fs, banglesOffsetsBytes, banglesPointer);
             }
 
-            //boneMatrix
-            byte[] boneMatrixBytes = new byte[boneMatrices.Count * 0x40];
-            for (int i = 0; i < boneMatrices.Count; i++)
+            int collisionDataOffset = (collisionData != null) ? SeekWrite(fs, collisionData.Serialize()) : 0;
+
+            int soundOffset = 0;
+            if (modelSounds.Count > 0)
             {
-                byte[] boneMatrixByte = boneMatrices[i].Serialize();
-                boneMatrixByte.CopyTo(boneMatrixBytes, i * 0x40);
+                soundOffset = SeekPast(fs, 0x10);
+                for (int i = 0; i < modelSounds.Count; i++)
+                    SeekWrite(fs, modelSounds[i].Serialize(), 0x01);
             }
 
-            //boneData
-            byte[] boneDataBytes = new byte[boneDatas.Count * 0x10];
-            for (int i = 0; i < boneDatas.Count; i++)
-            {
-                byte[] boneDataByte = boneDatas[i].Serialize();
-                boneDataByte.CopyTo(boneDataBytes, i * 0x10);
-            }
-
-            int hack = 0;
-            if (id > 2) hack = 0x20;
-            int meshDataOffset = GetLength(HEADERSIZE + animations.Count * 4 + stupidOffset + hack, alignment);
-            int textureConfigOffset = GetLength(meshDataOffset + 0x20, alignment);
-            int metalTextureConfigOffset = GetLength(textureConfigOffset + textureConfig.Count * 0x10, alignment);
-
-            int file80 = 0;
-            if (vertexBuffer.Length != 0)
-                file80 = DistToFile80(offset + metalTextureConfigOffset + metalTextureConfig.Count * 0x10);
-            int vertOffset = GetLength(metalTextureConfigOffset + metalTextureConfig.Count * 0x10 + file80, alignment);
-            int metalVertOffset = vertOffset + vertexBytes.Length;
-            int faceOffset = GetLength(metalVertOffset + metalVertexBytes.Length, alignment);
-            int metalIndexOffset = faceOffset + faceBytes.Length;
-            int type10Offset = GetLength(metalIndexOffset + metalIndexBytes.Length, alignment);
-            int soundOffset = GetLength(type10Offset + type10Block.Length, alignment);
-            int attachmentOffset = GetLength(soundOffset + soundBytes.Length, alignment);
-
-
-            List<byte> attachmentBytes = new List<byte>();
+            // Attachments
+            int attachmentOffset = 0;
             if (attachments.Count > 0)
             {
-                byte[] attachmentHead = new byte[4 + attachments.Count * 4];
-                WriteInt(attachmentHead, 0, attachments.Count);
-                int attOffset = attachmentOffset + 4 + attachments.Count * 4;
+                int attachmentHeaderSize = 0x04 + attachments.Count * 0x04;
+
+                attachmentOffset = SeekReserve(fs, attachmentHeaderSize);
+                byte[] attachmentHead = new byte[attachmentHeaderSize];
+
+                WriteInt(attachmentHead, 0x00, attachments.Count);
                 for (int i = 0; i < attachments.Count; i++)
                 {
-                    WriteInt(attachmentHead, 4 + i * 4, attOffset);
-                    byte[] attBytes = attachments[i].Serialize();
-                    attachmentBytes.AddRange(attBytes);
-                    attOffset += attBytes.Length;
+                    int attOffset = SeekWrite(fs, attachments[i].Serialize(), 0x01);
+                    WriteInt(attachmentHead, 0x04 + i * 0x04, GetRelativeOffset(attOffset, headerOffset));
                 }
-                attachmentBytes.InsertRange(0, attachmentHead);
+
+                WriteBytesAtOffset(fs, attachmentHead, attachmentOffset);
             }
             else if (indexAttachments.Count > 0)
             {
-                attachmentBytes.AddRange(new byte[] { 0, 0, 0, 0 });
-                attachmentBytes.AddRange(indexAttachments);
-                attachmentBytes.Add(0xff);
+                int attachmentSize = 0x04 + indexAttachments.Count + 0x01;
+                byte[] attachmentBytes = new byte[attachmentSize];
+
+                WriteInt(attachmentBytes, 0x00, 0);
+                indexAttachments.CopyTo(attachmentBytes, 0x04);
+                attachmentBytes[attachmentSize - 1] = 0xFF;
+
+                attachmentOffset = SeekWrite(fs, attachmentBytes);
             }
 
-
-
-            int boneMatrixOffset = GetLength(attachmentOffset + attachmentBytes.Count, alignment);
-            int boneDataOffset = GetLength(boneMatrixOffset + boneMatrixBytes.Length, alignment);
-            int animationOffset = GetLength(boneDataOffset + boneDataBytes.Length, alignment);
-            int newAnimationOffset = animationOffset;
-            List<byte> animByteList = new List<byte>();
-
-            List<int> animOffsets = new List<int>();
-
-            foreach (Animation anim in animations)
-            {
-                if (anim.frames.Count != 0)
-                {
-                    animOffsets.Add(newAnimationOffset);
-                    byte[] anima = anim.Serialize(newAnimationOffset, offset);
-                    animByteList.AddRange(anima);
-                    newAnimationOffset += anima.Length;
-                }
-                else
-                {
-                    animOffsets.Add(0);
-                }
-            }
-
-            int modelLength = newAnimationOffset;
-            byte[] outbytes = new byte[modelLength];
-
-
-            // Header
-            if (vertexBuffer.Length != 0)
-                WriteInt(outbytes, 0x00, meshDataOffset);
-
-            outbytes[0x08] = boneCount;
-            outbytes[0x09] = lpBoneCount;
-            outbytes[0x0A] = count3;
-            outbytes[0x0B] = count4;
-            outbytes[0x0C] = (byte) animations.Count;
-            outbytes[0x0D] = (byte) modelSounds.Count;
-            outbytes[0x0E] = lpRenderDist;
-            outbytes[0x0F] = count8;
-
-            if (type10Block.Length != 0)
-                WriteInt(outbytes, 0x10, type10Offset);
-
+            int boneMatrixOffset = 0;
             if (id != 1 && id != 2)
             {
-                WriteInt(outbytes, 0x14, boneMatrixOffset);
-                WriteInt(outbytes, 0x18, boneDataOffset);
+                boneMatrixOffset = SeekPast(fs, 0x10);
+                for (int i = 0; i < boneMatrices.Count; i++)
+                    SeekWrite(fs, boneMatrices[i].Serialize(), 0x01);
             }
 
-            if (attachments.Count != 0 || indexAttachments.Count != 0)
-                WriteInt(outbytes, 0x1C, attachmentOffset);
+            int boneDataOffset = 0;
+            if (id != 1 && id != 2)
+            {
+                boneDataOffset = SeekPast(fs, 0x10);
+                for (int i = 0; i < boneDatas.Count; i++)
+                    SeekWrite(fs, boneDatas[i].Serialize(), 0x01);
+            }
+            else
+            {
+                SeekPast(fs, 0x08);
+            }
 
-
-            //null
-            WriteFloat(outbytes, 0x24, size);
-            if (modelSounds.Count != 0)
-                WriteInt(outbytes, 0x28, soundOffset);
-
-            // TODO: Serialize Bangles
-            outbytes[0x2D] = unk1;
-            // TODO: Serialize corncobs
-
-            WriteFloat(outbytes, 0x30, cullingX);
-            WriteFloat(outbytes, 0x34, cullingY);
-            WriteFloat(outbytes, 0x38, cullingZ);
-            WriteFloat(outbytes, 0x3C, cullingRadius);
-
-            WriteUint(outbytes, 0x40, color2);
-            WriteUint(outbytes, 0x44, unk6);
-
+            // AnimationOffsets
+            byte[] animationOffsetsBytes = new byte[0x04 * animations.Count];
             for (int i = 0; i < animations.Count; i++)
             {
-                WriteInt(outbytes, HEADERSIZE + i * 0x04, animOffsets[i]);
+                int animOffset = animations[i].WriteBytes(fs, headerOffset);
+                WriteInt(animationOffsetsBytes, i * 0x04, GetRelativeOffset(animOffset, headerOffset));
             }
 
-            vertexBytes.CopyTo(outbytes, vertOffset);
-            metalVertexBytes.CopyTo(outbytes, metalVertOffset);
-            faceBytes.CopyTo(outbytes, faceOffset);
-            metalIndexBytes.CopyTo(outbytes, metalIndexOffset);
+            WriteBytesAtOffset(fs, animationOffsetsBytes, animationOffsetsOffset);
 
-            if (type10Block != null)
+            int corncobPointer;
+            if (corncobs.Length == 16)
             {
-                type10Block.CopyTo(outbytes, type10Offset);
+                corncobPointer = SeekReserve(fs, 0x10);
+
+                byte[] corncobHeaderBytes = new byte[0x10];
+
+                for (int i = 0; i < 16; i++)
+                {
+                    Corncob? corncob = corncobs[i];
+                    if (corncob != null)
+                    {
+                        byte[] corncobBytes = corncob.Serialize();
+
+                        int corncobOffset = SeekWrite(fs, corncobBytes, 0x10);
+
+                        corncobHeaderBytes[i] = (byte) ((corncobOffset - corncobPointer) / 0x10);
+                    }
+                    else
+                    {
+                        corncobHeaderBytes[i] = 0xFF;
+                    }
+
+                }
+
+                WriteBytesAtOffset(fs, corncobHeaderBytes, corncobPointer);
+            }
+            else
+            {
+                corncobPointer = SeekWrite(fs, corncobFallback, 0x10);
             }
 
-            soundBytes.CopyTo(outbytes, soundOffset);
-            attachmentBytes.CopyTo(outbytes, attachmentOffset);
-            boneMatrixBytes.CopyTo(outbytes, boneMatrixOffset);
-            boneDataBytes.CopyTo(outbytes, boneDataOffset);
-            animByteList.CopyTo(outbytes, animationOffset);
+            // Header
+            byte[] headerBytes = new byte[HEADERSIZE];
+            WriteInt(headerBytes, 0x00, GetRelativeOffset(meshDataOffset, headerOffset));
 
+            headerBytes[0x08] = boneCount;
+            headerBytes[0x09] = lpBoneCount;
+            headerBytes[0x0A] = count3;
+            headerBytes[0x0B] = count4;
+            headerBytes[0x0C] = (byte) animations.Count;
+            headerBytes[0x0D] = (byte) modelSounds.Count;
+            headerBytes[0x0E] = lpRenderDist;
+            headerBytes[0x0F] = count8;
 
-            // Mesh header
-            WriteInt(outbytes, meshDataOffset + 0x00, textureConfig.Count);
-            WriteInt(outbytes, meshDataOffset + 0x04, metalTextureConfig.Count);
-            if (textureConfig.Count != 0)
-                WriteInt(outbytes, meshDataOffset + 0x08, textureConfigOffset);
-            if (metalTextureConfig.Count != 0)
-                WriteInt(outbytes, meshDataOffset + 0x0c, metalTextureConfigOffset);
-            if (vertexBuffer.Length != 0)
-                WriteInt(outbytes, meshDataOffset + 0x10, vertOffset);
-            if (faceBytes.Length != 0)
-                WriteInt(outbytes, meshDataOffset + 0x14, faceOffset);
-            WriteShort(outbytes, meshDataOffset + 0x18, (short) (vertexBytes.Length / VERTELEMENTSIZE));
-            WriteShort(outbytes, meshDataOffset + 0x1a, (short) (metalVertexBytes.Length / METALVERTELEMENTSIZE));
-            WriteShort(outbytes, meshDataOffset + 0x1C, (short) (vertexCount2));
+            WriteInt(headerBytes, 0x10, GetRelativeOffset(collisionDataOffset, headerOffset));
+            WriteInt(headerBytes, 0x14, GetRelativeOffset(boneMatrixOffset, headerOffset));
+            WriteInt(headerBytes, 0x18, GetRelativeOffset(boneDataOffset, headerOffset));
+            WriteInt(headerBytes, 0x1C, GetRelativeOffset(attachmentOffset, headerOffset));
 
+            WriteFloat(headerBytes, 0x24, size);
+            WriteInt(headerBytes, 0x28, GetRelativeOffset(soundOffset, headerOffset));
+            WriteUshort(headerBytes, 0x2C, (ushort) (GetRelativeOffset(banglesPointer, headerOffset) / 0x10));
+            WriteUshort(headerBytes, 0x2E, (ushort) (GetRelativeOffset(corncobPointer, headerOffset) / 0x10));
+
+            WriteFloat(headerBytes, 0x30, cullingX);
+            WriteFloat(headerBytes, 0x34, cullingY);
+            WriteFloat(headerBytes, 0x38, cullingZ);
+            WriteFloat(headerBytes, 0x3C, cullingRadius);
+
+            WriteUint(headerBytes, 0x40, color2);
+            WriteUint(headerBytes, 0x44, unk6);
+
+            WriteBytesAtOffset(fs, headerBytes, headerOffset);
+
+            // Mesh Header
+            if (meshDataOffset > 0)
+            {
+                byte[] meshDataBytes = new byte[0x20];
+                WriteInt(meshDataBytes, 0x00, textureConfig.Count);
+                WriteInt(meshDataBytes, 0x04, metalTextureConfig.Count);
+                WriteInt(meshDataBytes, 0x08, GetRelativeOffset(textureConfigOffset, headerOffset));
+                WriteInt(meshDataBytes, 0x0C, GetRelativeOffset(metalTextureConfigOffset, headerOffset));
+                WriteInt(meshDataBytes, 0x10, GetRelativeOffset(vertOffset, headerOffset));
+                WriteInt(meshDataBytes, 0x14, GetRelativeOffset(faceOffset, headerOffset));
+                WriteShort(meshDataBytes, 0x18, (short) vertexCount);
+                WriteShort(meshDataBytes, 0x1A, (short) metalVertexCount);
+                WriteShort(meshDataBytes, 0x1C, (short) vertexCount2);
+
+                WriteBytesAtOffset(fs, meshDataBytes, meshDataOffset);
+            }
+
+            // Texture Configs
+            byte[] textureConfigBytes = new byte[textureConfig.Count * 0x10];
             for (int i = 0; i < textureConfig.Count; i++)
             {
-                WriteInt(outbytes, textureConfigOffset + i * 0x10 + 0x00, textureConfig[i].id);
-                WriteInt(outbytes, textureConfigOffset + i * 0x10 + 0x04, textureConfig[i].start);
-                WriteInt(outbytes, textureConfigOffset + i * 0x10 + 0x08, textureConfig[i].size);
-                WriteInt(outbytes, textureConfigOffset + i * 0x10 + 0x0C, textureConfig[i].mode);
+                WriteInt(textureConfigBytes, i * 0x10 + 0x00, textureConfig[i].id);
+                WriteInt(textureConfigBytes, i * 0x10 + 0x04, textureConfig[i].start);
+                WriteInt(textureConfigBytes, i * 0x10 + 0x08, textureConfig[i].size);
+                WriteInt(textureConfigBytes, i * 0x10 + 0x0C, textureConfig[i].mode);
             }
 
+            WriteBytesAtOffset(fs, textureConfigBytes, textureConfigOffset);
+
+            // Metal Texture Configs
+            byte[] metalTextureConfigBytes = new byte[metalTextureConfig.Count * 0x10];
             for (int i = 0; i < metalTextureConfig.Count; i++)
             {
-                WriteInt(outbytes, metalTextureConfigOffset + i * 0x10 + 0x00, metalTextureConfig[i].id);
-                WriteInt(outbytes, metalTextureConfigOffset + i * 0x10 + 0x04, metalTextureConfig[i].start);
-                WriteInt(outbytes, metalTextureConfigOffset + i * 0x10 + 0x08, metalTextureConfig[i].size);
-                WriteInt(outbytes, metalTextureConfigOffset + i * 0x10 + 0x0C, metalTextureConfig[i].mode);
+                WriteInt(metalTextureConfigBytes, i * 0x10 + 0x00, metalTextureConfig[i].id);
+                WriteInt(metalTextureConfigBytes, i * 0x10 + 0x04, metalTextureConfig[i].start);
+                WriteInt(metalTextureConfigBytes, i * 0x10 + 0x08, metalTextureConfig[i].size);
+                WriteInt(metalTextureConfigBytes, i * 0x10 + 0x0C, metalTextureConfig[i].mode);
             }
 
-            return outbytes;
+            WriteBytesAtOffset(fs, metalTextureConfigBytes, metalTextureConfigOffset);
+
+            SeekPast(fs, 0x10);
+
+            return headerOffset;
         }
     }
 }

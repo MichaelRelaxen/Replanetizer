@@ -23,6 +23,9 @@ namespace LibReplanetizer
             ClampEdge = 1
         }
 
+        public int unk1 { get; set; }
+        public int unk2 { get; set; }
+
         [Category("Attributes"), DisplayName("Texture ID")]
         public int id { get; set; }
         [Category("Attributes"), DisplayName("Face Start Index")]

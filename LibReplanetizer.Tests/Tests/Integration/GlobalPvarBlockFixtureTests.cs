@@ -13,7 +13,7 @@ namespace LibReplanetizer.Tests.Integration
 {
     /// <summary>
     /// Fixture tests for <see cref="GlobalPvarBlock"/> (exposed via
-    /// <c>GameplayParser.GetType4Cs()</c>).
+    /// <c>GameplayParser.GetPvarBlocks()</c>).
     /// </summary>
     public class GlobalPvarBlockFixtureTests
     {
@@ -21,11 +21,12 @@ namespace LibReplanetizer.Tests.Integration
         private const string SkipMsg = "Set env var REPLANETIZER_TEST_FIXTURES to a directory containing gameplay_ntsc.";
 
         [SkippableFact]
-        public void GetType4Cs_ReturnsNonNull()
+        public void GetPvarBlocks_ReturnsNonNull()
         {
             Skip.If(GameplayFile == null, SkipMsg);
             using var parser = new GameplayParser(GameType.RaC1, GameplayFile!);
-            Assert.NotNull(parser.GetType4Cs());
+            int padding = 0;
+            Assert.NotNull(parser.GetPvarBlocks(ref padding));
         }
 
         [SkippableFact]
@@ -33,7 +34,8 @@ namespace LibReplanetizer.Tests.Integration
         {
             Skip.If(GameplayFile == null, SkipMsg);
             using var parser = new GameplayParser(GameType.RaC1, GameplayFile!);
-            foreach (var block in parser.GetType4Cs())
+            int padding = 0;
+            foreach (var block in parser.GetPvarBlocks(ref padding))
                 Assert.Equal(GlobalPvarBlock.ELEMENTSIZE, block.ToByteArray().Length);
         }
 
@@ -42,7 +44,8 @@ namespace LibReplanetizer.Tests.Integration
         {
             Skip.If(GameplayFile == null, SkipMsg);
             using var parser = new GameplayParser(GameType.RaC1, GameplayFile!);
-            foreach (var block in parser.GetType4Cs())
+            int padding = 0;
+            foreach (var block in parser.GetPvarBlocks(ref padding))
             {
                 byte[] bytes = block.ToByteArray();
                 Assert.Equal(block.off00, DataFunctions.ReadUshort(bytes, 0x00));
@@ -54,7 +57,8 @@ namespace LibReplanetizer.Tests.Integration
         {
             Skip.If(GameplayFile == null, SkipMsg);
             using var parser = new GameplayParser(GameType.RaC1, GameplayFile!);
-            foreach (var block in parser.GetType4Cs())
+            int padding = 0;
+            foreach (var block in parser.GetPvarBlocks(ref padding))
             {
                 byte[] bytes = block.ToByteArray();
                 Assert.Equal(block.off06, DataFunctions.ReadUshort(bytes, 0x06));

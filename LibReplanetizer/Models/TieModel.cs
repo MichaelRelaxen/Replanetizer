@@ -8,6 +8,7 @@
 using System.ComponentModel;
 using System.IO;
 using static LibReplanetizer.DataFunctions;
+using static LibReplanetizer.Serializers.SerializerFunctions;
 
 namespace LibReplanetizer.Models
 {
@@ -34,6 +35,8 @@ namespace LibReplanetizer.Models
         public uint off38 { get; set; }
         public uint off3C { get; set; }
 
+        private byte[] unkVertexUVs = [];
+
 
         public TieModel(FileStream fs, byte[] tieBlock, int num)
         {
@@ -48,16 +51,16 @@ namespace LibReplanetizer.Models
             int indexPointer = ReadInt(tieBlock, offset + 0x18);
             int texturePointer = ReadInt(tieBlock, offset + 0x1C);
 
-            off20 = ReadUint(tieBlock, offset + 0x20);                 //null
+            off20 = ReadUint(tieBlock, offset + 0x20);
             int vertexCount = ReadInt(tieBlock, offset + 0x24);
             short textureCount = ReadShort(tieBlock, offset + 0x28);
             wiggleMode = ReadShort(tieBlock, offset + 0x2A);
             off2C = ReadFloat(tieBlock, offset + 0x2C);
 
             id = ReadShort(tieBlock, offset + 0x30);
-            off34 = ReadUint(tieBlock, offset + 0x34);                 //null
-            off38 = ReadUint(tieBlock, offset + 0x38);                 //null
-            off3C = ReadUint(tieBlock, offset + 0x3C);                 //null
+            off34 = ReadUint(tieBlock, offset + 0x34);
+            off38 = ReadUint(tieBlock, offset + 0x38);
+            off3C = ReadUint(tieBlock, offset + 0x3C);
 
             size = 1.0f;
 
@@ -67,69 +70,62 @@ namespace LibReplanetizer.Models
             //Get vertex buffer float[vertX, vertY, vertZ, normX, normY, normZ] and UV array float[U, V] * vertexCount
             vertexBuffer = GetVertices(fs, vertexPointer, uvPointer, vertexCount, TIEVERTELEMSIZE, TIEUVELEMSIZE);
 
+            int unkVertexUVsOffset = AlignAddressUp(uvPointer + TIEUVELEMSIZE * vertexCount, 0x10);
+
+            // Sometimes there are additional UV, it is unknown what they are used for.
+            if (indexPointer > unkVertexUVsOffset)
+                unkVertexUVs = ReadBlock(fs, unkVertexUVsOffset, indexPointer - unkVertexUVsOffset);
+
             //Get index buffer ushort[i] * faceCount
             indexBuffer = GetIndices(fs, indexPointer, indexCount);
         }
 
-        public byte[] SerializeHead(int offStart)
+        public int WriteBytes(FileStream fs, int headerOffset)
         {
-            byte[] outBytes = new byte[0x40];
-
-            WriteFloat(outBytes, 0x00, cullingX);
-            WriteFloat(outBytes, 0x04, cullingY);
-            WriteFloat(outBytes, 0x08, cullingZ);
-            WriteFloat(outBytes, 0x0C, cullingRadius);
-
-            int texturePointer = GetLength(offStart);
-            int hack = DistToFile80(texturePointer + textureConfig.Count * TIETEXELEMSIZE);
-            int vertexPointer = GetLength(texturePointer + textureConfig.Count * TIETEXELEMSIZE + hack); //+ 0x70
-            int uvPointer = GetLength(vertexPointer + (vertexBuffer.Length / 8) * TIEVERTELEMSIZE);
-            int indexPointer = GetLength(uvPointer + (vertexBuffer.Length / 8) * TIEUVELEMSIZE);
-
-            WriteInt(outBytes, 0x10, vertexPointer);
-            WriteInt(outBytes, 0x14, uvPointer);
-            WriteInt(outBytes, 0x18, indexPointer);
-            WriteInt(outBytes, 0x1C, texturePointer);
-
-            WriteUint(outBytes, 0x20, off20);
-            WriteInt(outBytes, 0x24, vertexBuffer.Length / 8);
-            WriteShort(outBytes, 0x28, (short) textureConfig.Count);
-            WriteShort(outBytes, 0x2A, wiggleMode);
-            WriteFloat(outBytes, 0x2C, off2C);
-
-            WriteShort(outBytes, 0x30, id);
-            WriteUint(outBytes, 0x34, off34);
-            WriteUint(outBytes, 0x38, off38);
-            WriteUint(outBytes, 0x3C, off3C);
-
-            return outBytes;
-        }
-
-        public byte[] SerializeBody(int offStart)
-        {
-            int texturePointer = 0;
-            int hack = DistToFile80(offStart + texturePointer + textureConfig.Count * TIETEXELEMSIZE);
-            int vertexPointer = GetLength(texturePointer + textureConfig.Count * TIETEXELEMSIZE + hack); //+ 0x70
-            int uvPointer = GetLength(vertexPointer + (vertexBuffer.Length / 8) * TIEVERTELEMSIZE);
-            int indexPointer = GetLength(uvPointer + (vertexBuffer.Length / 8) * TIEUVELEMSIZE);
-            int length = GetLength(indexPointer + indexBuffer.Length * 2);
-
-            byte[] outBytes = new byte[length];
-            SerializeTieVertices().CopyTo(outBytes, vertexPointer);
-            GetFaceBytes().CopyTo(outBytes, indexPointer);
-            SerializeUVs().CopyTo(outBytes, uvPointer);
-
+            byte[] textureConfigBytes = new byte[textureConfig.Count * TIETEXELEMSIZE];
             for (int i = 0; i < textureConfig.Count; i++)
             {
-                WriteInt(outBytes, texturePointer + i * 0x18 + 0x00, textureConfig[i].id);
-                WriteInt(outBytes, texturePointer + i * 0x18 + 0x04, -1);
-                WriteInt(outBytes, texturePointer + i * 0x18 + 0x08, textureConfig[i].start);
-                WriteInt(outBytes, texturePointer + i * 0x18 + 0x0C, textureConfig[i].size);
-                WriteInt(outBytes, texturePointer + i * 0x18 + 0x10, 0);
-                WriteInt(outBytes, texturePointer + i * 0x18 + 0x14, textureConfig[i].mode);
+                WriteInt(textureConfigBytes, i * 0x18 + 0x00, textureConfig[i].id);
+                WriteInt(textureConfigBytes, i * 0x18 + 0x04, textureConfig[i].unk1);
+                WriteInt(textureConfigBytes, i * 0x18 + 0x08, textureConfig[i].start);
+                WriteInt(textureConfigBytes, i * 0x18 + 0x0C, textureConfig[i].size);
+                WriteInt(textureConfigBytes, i * 0x18 + 0x10, textureConfig[i].unk2);
+                WriteInt(textureConfigBytes, i * 0x18 + 0x14, textureConfig[i].mode);
             }
 
-            return outBytes;
+            int textureConfigOffset = SeekWrite(fs, textureConfigBytes);
+
+            int vertexOffset = SeekWrite(fs, SerializeTieVertices(), 0x80);
+            int uvOffset = SeekWrite(fs, SerializeUVs());
+            SeekWrite(fs, unkVertexUVs);
+            int indexOffset = SeekWrite(fs, GetFaceBytes());
+
+            byte[] headerBytes = new byte[0x40];
+
+            WriteFloat(headerBytes, 0x00, cullingX);
+            WriteFloat(headerBytes, 0x04, cullingY);
+            WriteFloat(headerBytes, 0x08, cullingZ);
+            WriteFloat(headerBytes, 0x0C, cullingRadius);
+
+            WriteInt(headerBytes, 0x10, vertexOffset);
+            WriteInt(headerBytes, 0x14, uvOffset);
+            WriteInt(headerBytes, 0x18, indexOffset);
+            WriteInt(headerBytes, 0x1C, textureConfigOffset);
+
+            WriteUint(headerBytes, 0x20, off20);
+            WriteInt(headerBytes, 0x24, vertexBuffer.Length / 8);
+            WriteShort(headerBytes, 0x28, (short) textureConfig.Count);
+            WriteShort(headerBytes, 0x2A, wiggleMode);
+            WriteFloat(headerBytes, 0x2C, off2C);
+
+            WriteShort(headerBytes, 0x30, id);
+            WriteUint(headerBytes, 0x34, off34);
+            WriteUint(headerBytes, 0x38, off38);
+            WriteUint(headerBytes, 0x3C, off3C);
+
+            WriteBytesAtOffset(fs, headerBytes, headerOffset);
+
+            return textureConfigOffset;
         }
     }
 }

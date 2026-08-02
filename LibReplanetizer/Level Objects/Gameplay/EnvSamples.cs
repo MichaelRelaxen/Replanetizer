@@ -49,6 +49,8 @@ namespace LibReplanetizer.LevelObjects
         public float fogNearDist { get; set; }
         [Category("Attributes"), DisplayName("Fog Far Distance")]
         public float fogFarDist { get; set; }
+        public int unk0x2C { get; set; }
+        public short unk0x1E { get; set; }
 
         public EnvSample(GameType game, byte[] block, int num)
         {
@@ -105,6 +107,7 @@ namespace LibReplanetizer.LevelObjects
             reverbFeedback = block[offset + 0x26];
             enableReverbParams = block[offset + 0x27] > 0;
             musicTrack = ReadInt(block, offset + 0x28);
+            unk0x2C = ReadInt(block, offset + 0x2C);
 
             position = new Vector3(posX, posY, posZ);
             heroColor = Color.FromRgb((byte) heroR, (byte) heroG, (byte) heroB).ToPixel<Rgb24>();
@@ -135,6 +138,7 @@ namespace LibReplanetizer.LevelObjects
             byte fogB = block[offset + 0x19];
             short fogND = ReadShort(block, offset + 0x1A);
             short fogFD = ReadShort(block, offset + 0x1C);
+            unk0x1E = ReadShort(block, offset + 0x1E);
 
             position = new Vector3(posX * 0.25f, posY * 0.25f, posZ * 0.25f);
             heroColor = Color.FromRgb((byte) heroR, (byte) heroG, (byte) heroB).ToPixel<Rgb24>();
@@ -191,7 +195,7 @@ namespace LibReplanetizer.LevelObjects
             bytes[0x26] = reverbFeedback;
             bytes[0x27] = (byte) ((enableReverbParams) ? 1 : 0);
             WriteInt(bytes, 0x28, musicTrack);
-            WriteInt(bytes, 0x2C, 0);
+            WriteInt(bytes, 0x2C, unk0x2C);
 
             return bytes;
         }
@@ -221,7 +225,7 @@ namespace LibReplanetizer.LevelObjects
             bytes[0x19] = (byte) fogColor.B;
             WriteShort(bytes, 0x1A, (short) fogNearDist);
             WriteShort(bytes, 0x1C, (short) fogFarDist);
-            WriteShort(bytes, 0x1E, 0);
+            WriteShort(bytes, 0x1E, unk0x1E);
 
             return bytes;
         }

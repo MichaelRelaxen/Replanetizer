@@ -109,30 +109,13 @@ namespace LibReplanetizer
 
         public static byte[] ReadBlock(FileStream fs, long offset, int length)
         {
-            if (length > 0)
-            {
-                fs.Seek(offset, SeekOrigin.Begin);
-                byte[] returnBytes = new byte[length];
-                fs.Read(returnBytes, 0, length);
-                return returnBytes;
-            }
-            else
-            {
-                byte[] returnBytes = new byte[0x10];
-                return returnBytes;
-            }
-        }
+            if (length == 0)
+                return [];
 
-        public static byte[] ReadBlockNopad(FileStream fs, long offset, int length)
-        {
-            if (length > 0)
-            {
-                fs.Seek(offset, SeekOrigin.Begin);
-                byte[] returnBytes = new byte[length];
-                fs.Read(returnBytes, 0, length);
-                return returnBytes;
-            }
-            return new byte[0];
+            fs.Seek(offset, SeekOrigin.Begin);
+            byte[] returnBytes = new byte[length];
+            fs.Read(returnBytes, 0, length);
+            return returnBytes;
         }
 
         public static byte[] ReadString(FileStream fs, int offset)
@@ -246,6 +229,7 @@ namespace LibReplanetizer
             return data;
         }
 
+        [Obsolete]
         public static int GetLength(int length, int alignment = 0)
         {
             while (length % 0x10 != alignment)
@@ -255,6 +239,7 @@ namespace LibReplanetizer
             return length;
         }
 
+        [Obsolete]
         // vertexbuffers are often aligned to the nearest 0x80 in the file
         public static int DistToFile80(int length, int alignment = 0)
         {
@@ -267,30 +252,38 @@ namespace LibReplanetizer
             return added;
         }
 
-        public static int GetLength20(int length, int alignment = 0)
+        [Obsolete]
+        public static int GetLength40(int length, int alignment = 0)
         {
-            while (length % 0x20 != alignment)
+            while (length % 0x40 != alignment)
             {
                 length++;
             }
             return length;
         }
 
-        public static int GetLength100(int length)
-        {
-            while (length % 0x100 != 0)
-            {
-                length++;
-            }
-            return length;
-        }
-
+        [Obsolete]
         public static void Pad(List<byte> arr)
         {
             while (arr.Count % 0x10 != 0)
             {
                 arr.Add(0);
             }
+        }
+
+        public static int AlignAddressUp(int offset, int alignment = 0x10)
+        {
+            return ((offset + alignment - 1) / alignment) * alignment;
+        }
+
+        public static int AlignAddressDown(int offset, int alignment = 0x10)
+        {
+            return offset - offset % alignment;
+        }
+
+        public static int GetRelativeOffset(int offset, int baseOffset)
+        {
+            return (offset > 0) ? offset - baseOffset : offset;
         }
     }
 }

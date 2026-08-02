@@ -25,7 +25,7 @@ namespace LibReplanetizer.Models.Animations
     public class BoneMatrix
     {
         public Matrix3x4 transformation;
-        private Vector3 cumulativeOffset;
+        private Vector3 cumulativeOffset; // Note: We avoid scaling by 1024 since we don't use this data and want to preserve serialization!
         private short parent;
         public short id;
         private short unk0x3C;
@@ -55,7 +55,7 @@ namespace LibReplanetizer.Models.Animations
             float cumulativeOffsetY = ReadFloat(boneBlock, offset + 0x34);
             float cumulativeOffsetZ = ReadFloat(boneBlock, offset + 0x38);
 
-            cumulativeOffset = new Vector3(cumulativeOffsetX / 1024.0f, cumulativeOffsetY / 1024.0f, cumulativeOffsetZ / 1024.0f);
+            cumulativeOffset = new Vector3(cumulativeOffsetX, cumulativeOffsetY, cumulativeOffsetZ);
 
             //0 for root and some constant else (0b0111000000000000 = 0x7000 = 28672)
             unk0x3C = ReadShort(boneBlock, offset + 0x3C);
@@ -65,15 +65,15 @@ namespace LibReplanetizer.Models.Animations
             inverseBindMatrix.M11 = transformation.M11;
             inverseBindMatrix.M12 = transformation.M21;
             inverseBindMatrix.M13 = transformation.M31;
-            inverseBindMatrix.M14 = cumulativeOffset.X;
+            inverseBindMatrix.M14 = cumulativeOffsetX / 1024.0f;
             inverseBindMatrix.M21 = transformation.M12;
             inverseBindMatrix.M22 = transformation.M22;
             inverseBindMatrix.M23 = transformation.M32;
-            inverseBindMatrix.M24 = cumulativeOffset.Y;
+            inverseBindMatrix.M24 = cumulativeOffsetY / 1024.0f;
             inverseBindMatrix.M31 = transformation.M13;
             inverseBindMatrix.M32 = transformation.M23;
             inverseBindMatrix.M33 = transformation.M33;
-            inverseBindMatrix.M34 = cumulativeOffset.Z;
+            inverseBindMatrix.M34 = cumulativeOffsetZ / 1024.0f;
             inverseBindMatrix.M41 = 0.0f;
             inverseBindMatrix.M42 = 0.0f;
             inverseBindMatrix.M43 = 0.0f;
@@ -121,9 +121,9 @@ namespace LibReplanetizer.Models.Animations
         {
             byte[] outBytes = new byte[0x40];
             WriteMatrix3x4(outBytes, 0x00, transformation);
-            WriteFloat(outBytes, 0x30, cumulativeOffset.X * 1024.0f);
-            WriteFloat(outBytes, 0x34, cumulativeOffset.Y * 1024.0f);
-            WriteFloat(outBytes, 0x38, cumulativeOffset.Z * 1024.0f);
+            WriteFloat(outBytes, 0x30, cumulativeOffset.X);
+            WriteFloat(outBytes, 0x34, cumulativeOffset.Y);
+            WriteFloat(outBytes, 0x38, cumulativeOffset.Z);
             WriteShort(outBytes, 0x3C, unk0x3C);
             WriteShort(outBytes, 0x3E, (short) (parent * 0x40));
 

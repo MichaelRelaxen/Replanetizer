@@ -11,6 +11,7 @@ using System.IO;
 using NLog;
 using OpenTK.Mathematics;
 using static LibReplanetizer.DataFunctions;
+using static LibReplanetizer.Serializers.SerializerFunctions;
 
 namespace LibReplanetizer.Models
 {
@@ -30,8 +31,10 @@ namespace LibReplanetizer.Models
 
         [Category("Unknowns"), DisplayName("Other Index Buffer")]
         public List<ushort> otherIndexBuffer { get; set; } = new List<ushort>();
+        private int unk1C;
+        private byte[] unkBytes = new byte[0x10];
 
-        public Bangle(FileStream fs, int baseOffset, int headerOffset)
+        public Bangle(FileStream fs, int baseOffset, int headerOffset, int unkDataOffset)
         {
             byte[] meshHeader = ReadBlock(fs, baseOffset + headerOffset, MESHHEADERSIZE);
 
@@ -42,7 +45,8 @@ namespace LibReplanetizer.Models
             int vertPointer = baseOffset + ReadInt(meshHeader, 0x10);
             int indexPointer = baseOffset + ReadInt(meshHeader, 0x14);
             ushort vertexCount = ReadUshort(meshHeader, 0x18);
-            ushort metalVertCount = ReadUshort(meshHeader, 0x1a);
+            ushort metalVertCount = ReadUshort(meshHeader, 0x1A);
+            unk1C = ReadInt(meshHeader, 0x1C);
 
             int faceCount = 0;
             if (texBlockPointer > 0)
@@ -79,11 +83,60 @@ namespace LibReplanetizer.Models
             {
                 metalIndexBuffer = GetIndices(fs, metalIndexPointer, metalFaceCount);
             }
+
+            unkBytes = ReadBlock(fs, baseOffset + unkDataOffset, 0x10);
         }
 
-        public byte[] Serialize()
+        public int WriteBytes(FileStream fs, int mobyHeaderOffset, int unkDataOffset)
         {
-            return new byte[0];
+            int headerOffset = SeekReserve(fs, MESHHEADERSIZE);
+
+            int textureConfigOffset = SeekReserve(fs, textureConfig.Count * TEXTUREELEMENTSIZE, 0x01);
+            int metalTextureConfigOffset = SeekReserve(fs, metalTextureConfig.Count * TEXTUREELEMENTSIZE, 0x01);
+
+            int vertOffset = SeekWrite(fs, SerializeVertices(), 0x80);
+            int metalVertOffset = SeekWrite(fs, SerializeMetalVertices(), 0x01);
+            int faceOffset = SeekWrite(fs, GetFaceBytes(), 0x10);
+            int metalIndexOffset = SeekWrite(fs, SerializeMetalIndices(), 0x01);
+
+            byte[] headerBytes = new byte[MESHHEADERSIZE];
+            WriteInt(headerBytes, 0x00, textureConfig.Count);
+            WriteInt(headerBytes, 0x04, metalTextureConfig.Count);
+            WriteInt(headerBytes, 0x08, GetRelativeOffset(textureConfigOffset, mobyHeaderOffset));
+            WriteInt(headerBytes, 0x0C, GetRelativeOffset(metalTextureConfigOffset, mobyHeaderOffset));
+            WriteInt(headerBytes, 0x10, GetRelativeOffset(vertOffset, mobyHeaderOffset));
+            WriteInt(headerBytes, 0x14, GetRelativeOffset(faceOffset, mobyHeaderOffset));
+            WriteShort(headerBytes, 0x18, (short) vertexCount);
+            WriteShort(headerBytes, 0x1A, (short) metalVertexCount);
+            WriteInt(headerBytes, 0x1C, unk1C);
+
+            WriteBytesAtOffset(fs, headerBytes, headerOffset);
+
+            byte[] textureConfigBytes = new byte[textureConfig.Count * TEXTUREELEMENTSIZE];
+            for (int i = 0; i < textureConfig.Count; i++)
+            {
+                WriteInt(textureConfigBytes, i * TEXTUREELEMENTSIZE + 0x00, textureConfig[i].id);
+                WriteInt(textureConfigBytes, i * TEXTUREELEMENTSIZE + 0x04, textureConfig[i].start);
+                WriteInt(textureConfigBytes, i * TEXTUREELEMENTSIZE + 0x08, textureConfig[i].size);
+                WriteInt(textureConfigBytes, i * TEXTUREELEMENTSIZE + 0x0C, textureConfig[i].mode);
+            }
+
+            WriteBytesAtOffset(fs, textureConfigBytes, textureConfigOffset);
+
+            byte[] metalTextureConfigBytes = new byte[metalTextureConfig.Count * TEXTUREELEMENTSIZE];
+            for (int i = 0; i < metalTextureConfig.Count; i++)
+            {
+                WriteInt(metalTextureConfigBytes, i * TEXTUREELEMENTSIZE + 0x00, metalTextureConfig[i].id);
+                WriteInt(metalTextureConfigBytes, i * TEXTUREELEMENTSIZE + 0x04, metalTextureConfig[i].start);
+                WriteInt(metalTextureConfigBytes, i * TEXTUREELEMENTSIZE + 0x08, metalTextureConfig[i].size);
+                WriteInt(metalTextureConfigBytes, i * TEXTUREELEMENTSIZE + 0x0C, metalTextureConfig[i].mode);
+            }
+
+            WriteBytesAtOffset(fs, metalTextureConfigBytes, metalTextureConfigOffset);
+
+            WriteBytesAtOffset(fs, unkBytes, unkDataOffset);
+
+            return headerOffset;
         }
     }
 }

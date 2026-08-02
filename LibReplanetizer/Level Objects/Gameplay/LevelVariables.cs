@@ -16,7 +16,7 @@ namespace LibReplanetizer.LevelObjects
 {
     public class LevelVariables
     {
-        private uint byteSize = 0x0;
+        private int byteSize = 0x0;
 
         [Category("Attributes"), DisplayName("Background Color")]
         public Rgb24 backgroundColor { get; set; }
@@ -142,37 +142,36 @@ namespace LibReplanetizer.LevelObjects
         public int off98 { get; set; }
         [Category("Unknown"), DisplayName("OFF_9C")]
         public int off9C { get; set; }
-        [Category("Unknown"), DisplayName("OFF_100")]
-        public int off100 { get; set; }
+        [Category("Unknown"), DisplayName("OFF_A0")]
+        public int offA0 { get; set; }
 
-        [Category("Unknown"), DisplayName("UnknownBytes")]
-        public byte[] unknownBytes { get; set; } = new byte[0];
-
-        public LevelVariables(GameType game, FileStream fileStream, int levelVarPointer, int length)
+        public LevelVariables(GameType game, FileStream fileStream, int levelVarPointer)
         {
-            if (levelVarPointer == 0 || length == 0) return;
-
-            byte[] levelVarBlock = ReadBlock(fileStream, levelVarPointer, length);
+            if (levelVarPointer == 0) return;
 
             switch (game.num)
             {
                 case 1:
-                    GetRC1Vals(levelVarBlock);
+                    GetRC1Vals(fileStream, levelVarPointer);
                     break;
                 case 2:
-                    GetRC2Vals(levelVarBlock);
+                    GetRC2Vals(fileStream, levelVarPointer);
                     break;
                 case 3:
-                    GetRC3Vals(levelVarBlock);
+                    GetRC3Vals(fileStream, levelVarPointer);
                     break;
                 case 4:
-                    GetDLVals(levelVarBlock);
+                    GetDLVals(fileStream, levelVarPointer);
                     break;
             }
         }
 
-        private void GetRC1Vals(byte[] levelVarBlock)
+        private void GetRC1Vals(FileStream fileStream, int levelVarPointer)
         {
+            byteSize = 0x50;
+
+            byte[] levelVarBlock = ReadBlock(fileStream, levelVarPointer, byteSize);
+
             int bgRed = ReadInt(levelVarBlock, 0x00);
             int bgGreen = ReadInt(levelVarBlock, 0x04);
             int bgBlue = ReadInt(levelVarBlock, 0x08);
@@ -204,8 +203,12 @@ namespace LibReplanetizer.LevelObjects
             shipPosition = new Vector3(shipPositionX, shipPositionY, shipPositionZ);
         }
 
-        private void GetRC2Vals(byte[] levelVarBlock)
+        private void GetRC2Vals(FileStream fileStream, int levelVarPointer)
         {
+            byteSize = 0x80;
+
+            byte[] levelVarBlock = ReadBlock(fileStream, levelVarPointer, byteSize);
+
             int bgRed = ReadInt(levelVarBlock, 0x00);
             int bgGreen = ReadInt(levelVarBlock, 0x04);
             int bgBlue = ReadInt(levelVarBlock, 0x08);
@@ -247,7 +250,9 @@ namespace LibReplanetizer.LevelObjects
 
             if (chunkCount > 1)
             {
-                byteSize = 0x100;
+                byteSize = 0xA0;
+
+                levelVarBlock = ReadBlock(fileStream, levelVarPointer, byteSize);
 
                 float chunk2LimitX = ReadFloat(levelVarBlock, 0x7C);
 
@@ -266,8 +271,6 @@ namespace LibReplanetizer.LevelObjects
             }
             else
             {
-                byteSize = 0x80;
-
                 off7C = ReadInt(levelVarBlock, 0x7C);
             }
 
@@ -279,8 +282,12 @@ namespace LibReplanetizer.LevelObjects
             chunk1PlaneNormal = new Vector3(chunk1PlaneNormalX, chunk1PlaneNormalY, chunk1PlaneNormalZ);
         }
 
-        private void GetRC3Vals(byte[] levelVarBlock)
+        private void GetRC3Vals(FileStream fileStream, int levelVarPointer)
         {
+            byteSize = 0x84;
+
+            byte[] levelVarBlock = ReadBlock(fileStream, levelVarPointer, byteSize);
+
             int bgRed = ReadInt(levelVarBlock, 0x00);
             int bgGreen = ReadInt(levelVarBlock, 0x04);
             int bgBlue = ReadInt(levelVarBlock, 0x08);
@@ -322,7 +329,10 @@ namespace LibReplanetizer.LevelObjects
 
             if (chunkCount > 1)
             {
-                byteSize = 0x104;
+                // TODO: Sometimes the levelVars are only of length 0xA0, figure this out.
+                byteSize = 0xA4;
+
+                levelVarBlock = ReadBlock(fileStream, levelVarPointer, byteSize);
 
                 float chunk2LimitX = ReadFloat(levelVarBlock, 0x7C);
 
@@ -336,22 +346,14 @@ namespace LibReplanetizer.LevelObjects
                 off98 = ReadInt(levelVarBlock, 0x98);
                 off9C = ReadInt(levelVarBlock, 0x9C);
 
-                if (levelVarBlock.Length < 0x104)
-                {
-                    byteSize = 0x100;
-                }
-                else
-                {
-                    off100 = ReadInt(levelVarBlock, 0x100);
-                }
+                if (byteSize == 0xA4)
+                    offA0 = ReadInt(levelVarBlock, 0xA0);
 
                 chunk2Plane = new Vector3(chunk2LimitX, chunk2LimitY, chunk2LimitZ);
                 chunk2PlaneNormal = new Vector3(chunk2LimitOrientX, chunk2LimitOrientY, chunk2LimitOrientZ);
             }
             else
             {
-                byteSize = 0x84;
-
                 off7C = ReadInt(levelVarBlock, 0x7C);
                 off80 = ReadInt(levelVarBlock, 0x80);
             }
@@ -364,8 +366,12 @@ namespace LibReplanetizer.LevelObjects
             chunk1PlaneNormal = new Vector3(chunk1PlaneNormalX, chunk1PlaneNormalY, chunk1PlaneNormalZ);
         }
 
-        private void GetDLVals(byte[] levelVarBlock)
+        private void GetDLVals(FileStream fileStream, int levelVarPointer)
         {
+            byteSize = 0x84;
+
+            byte[] levelVarBlock = ReadBlock(fileStream, levelVarPointer, byteSize);
+
             int bgRed = ReadInt(levelVarBlock, 0x00);
             int bgGreen = ReadInt(levelVarBlock, 0x04);
             int bgBlue = ReadInt(levelVarBlock, 0x08);
@@ -408,13 +414,6 @@ namespace LibReplanetizer.LevelObjects
 
             off80 = ReadInt(levelVarBlock, 0x80);
 
-            unknownBytes = new byte[levelVarBlock.Length - 0x84];
-
-            for (int i = 0; i < levelVarBlock.Length - 0x84; i++)
-            {
-                unknownBytes[i] = levelVarBlock[0x84 + i];
-            }
-
             backgroundColor = Color.FromRgb((byte) bgRed, (byte) bgGreen, (byte) bgBlue).ToPixel<Rgb24>();
             fogColor = Color.FromRgb((byte) r, (byte) g, (byte) b).ToPixel<Rgb24>();
             sphereCentre = new Vector3(sphereCentreX, sphereCentreY, sphereCentreZ);
@@ -440,7 +439,7 @@ namespace LibReplanetizer.LevelObjects
 
         private byte[] SerializeRC1()
         {
-            byte[] bytes = new byte[0x50];
+            byte[] bytes = new byte[byteSize];
 
             WriteUint(bytes, 0x00, backgroundColor.R);
             WriteUint(bytes, 0x04, backgroundColor.G);
@@ -592,8 +591,8 @@ namespace LibReplanetizer.LevelObjects
                 WriteInt(bytes, 0x98, off98);
                 WriteInt(bytes, 0x9C, off9C);
 
-                if (byteSize >= 0x104)
-                    WriteInt(bytes, 0x100, off100);
+                if (byteSize == 0xA4)
+                    WriteInt(bytes, 0xA0, offA0);
             }
             else
             {
@@ -606,7 +605,7 @@ namespace LibReplanetizer.LevelObjects
 
         private byte[] SerializeDL()
         {
-            byte[] bytes = new byte[0x84 + unknownBytes.Length];
+            byte[] bytes = new byte[byteSize];
 
             WriteUint(bytes, 0x00, backgroundColor.R);
             WriteUint(bytes, 0x04, backgroundColor.G);
@@ -649,8 +648,6 @@ namespace LibReplanetizer.LevelObjects
             WriteInt(bytes, 0x7C, off7C);
 
             WriteInt(bytes, 0x80, off80);
-
-            unknownBytes.CopyTo(bytes, 0x84);
 
             return bytes;
         }

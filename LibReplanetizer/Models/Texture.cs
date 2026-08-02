@@ -32,7 +32,7 @@ namespace LibReplanetizer
         public short width;
         public short height;
         public int vramPointer;
-        public byte[] data = new byte[0];
+        public byte[] data = [];
 
         public byte unk0x04;
         public byte mipMapCount;
@@ -102,7 +102,7 @@ namespace LibReplanetizer
             WriteInt(outBytes, 0x00, vramOffset);
             outBytes[0x04] = unk0x04;
             outBytes[0x05] = mipMapCount;
-            outBytes[0x06] = (byte)compressionFormat;
+            outBytes[0x06] = (byte) compressionFormat;
             outBytes[0x07] = unk0x07;
             WriteInt(outBytes, 0x08, off08);
             WriteInt(outBytes, 0x0C, off0C);
