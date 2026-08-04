@@ -127,6 +127,16 @@ namespace Replanetizer.Renderer
             renderPrepared = false;
         }
 
+        private static bool HasMeshData(Model model)
+        {
+            if (model.GetIndices().Length > 0)
+            {
+                return true;
+            }
+
+            return model is MetalModel metalModel && metalModel.metalIndexBuffer.Length > 0;
+        }
+
         /// <summary>
         /// Generates IBO and VBO.
         /// </summary>
@@ -160,7 +170,7 @@ namespace Replanetizer.Renderer
             if (modelRender == null)
                 return;
 
-            if (modelRender.GetIndices().Length == 0)
+            if (!HasMeshData(modelRender))
                 return;
 
             // This is a camera object that only exist at runtime and blocks vision in interactive mode.
@@ -428,7 +438,7 @@ namespace Replanetizer.Renderer
             renderPrepared = true;
             renderPerform = true;
 
-            if (modelRender == null || modelRender.GetIndices().Length == 0)
+            if (modelRender == null || !HasMeshData(modelRender))
             {
                 renderPerformBillboardOnly = true;
                 return;
