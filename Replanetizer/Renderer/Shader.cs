@@ -221,6 +221,18 @@ namespace Replanetizer.Renderer
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetUniform1Array(UniformName uniformName, uint[] values)
+        {
+            GLUniform? uniform = GetUniformLocation(uniformName);
+
+            if (uniform != null)
+            {
+                UseShader();
+                uniform.Set1(values.Length, values);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetUniform1(UniformName uniformName, float v)
         {
             GLUniform? uniform = GetUniformLocation(uniformName);

@@ -15,17 +15,17 @@ void main() {
     vec3 N = normalize(cross(dFdy(v_worldPos), dFdx(v_worldPos)));
     vec3 lightDir = normalize(v_cameraPos - v_worldPos);
 
-    float ambient = 0.4; 
+    float ambient = 0.4;
     float diffuse = max(abs(dot(N, lightDir)), 0.0);
-    
+
     float brightness = ambient + (diffuse * 0.5);
 
     // Gray on the back sides, otherwise use material color
-    if(!gl_FrontFacing) {
-        color = vec4(0.5 * brightness, 0.5 * brightness, 0.5 * brightness, 0.7);
+    if (gl_FrontFacing) {
+        color = vec4(normalizedColor.rgb * brightness, 1.0);
     }
     else {
-        color = vec4(normalizedColor.rgb * brightness, 1.0);
+        color = vec4(vec3(0.5 * brightness), 0.7);
     }
 
     color = vec4(clamp(color.rgb, 0.0, 1.0), 1.0);

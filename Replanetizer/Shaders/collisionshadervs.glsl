@@ -8,13 +8,13 @@ layout(location = 1) in vec4 vertexColors;
 flat out vec4 diffuseColors;
 out float fogBlend;
 out vec3 v_worldPos;
-out vec3 v_cameraPos; 
+out vec3 v_cameraPos;
 
 // Values that stay constant for the whole mesh.
 uniform mat4 worldToView;
 uniform int useFog;
 uniform vec4 fogParams;
-uniform vec3 cameraPosition_worldspace;
+uniform vec3 cameraPosition;
 
 void main() {
     // Output position of the vertex, in clip space
@@ -23,7 +23,7 @@ void main() {
     diffuseColors = vertexColors;
 
     v_worldPos = vertexPosition_modelspace;
-    v_cameraPos = cameraPosition_worldspace;
+    v_cameraPos = cameraPosition;
 
     fogBlend = 0.0f;
 
