@@ -573,6 +573,7 @@ namespace Replanetizer.Renderer
 
             shaderTable.meshShader.SetUniform1(UniformName.mainTexture, 0);
             shaderTable.meshShader.SetUniform1(UniformName.blueNoiseTexture, 1);
+            shaderTable.meshShader.SetUniform1(UniformName.ssaaLevelLog, FramebufferRenderer.SSAA_LEVEL_LOG);
             shaderTable.meshShader.SetUniformMatrix4(UniformName.modelToWorld, ref modelToWorld);
             shaderTable.meshShader.SetUniformMatrix4(UniformName.worldToView, ref worldToView);
             shaderTable.meshShader.SetUniform3(UniformName.cameraPosition, payload.camera.position);

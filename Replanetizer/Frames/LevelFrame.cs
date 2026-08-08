@@ -53,9 +53,8 @@ namespace Replanetizer.Frames
         private readonly string[] selectionPositioningOptions = { PivotPositioning.Mean.HUMAN_NAME, PivotPositioning.IndividualOrigins.HUMAN_NAME };
         private readonly string[] selectionSpaceOptions = { TransformSpace.Global.HUMAN_NAME, TransformSpace.Local.HUMAN_NAME };
 
-        private int antialiasing = 3;
-        private readonly string[] antialiasingOptions = { "Off", "2x MSAA", "4x MSAA", "8x MSAA", "16x MSAA", "32x MSAA", "64x MSAA", "128x MSAA", "256x MSAA", "512x MSAA" };
-        private int maxAntialiasing = 4;
+        private int antialiasing = 1;
+        private readonly string[] antialiasingOptions = { "Off", "2x SSAA", "4x SSAA", "8x SSAA" };
 
         private Vector2 mousePos;
         private Vector3 prevMouseRay;
@@ -99,8 +98,6 @@ namespace Replanetizer.Frames
             string? applicationFolder = System.AppContext.BaseDirectory;
             string shaderFolder = Path.Join(applicationFolder, "Shaders");
             shaderTable = new ShaderTable(shaderFolder);
-
-            maxAntialiasing = (int) Math.Log2((double) GL.GetInteger(GetPName.MaxSamples));
 
             KEYMAP = new Keymap(wnd, Keymap.DEFAULT_KEYMAP);
 
@@ -301,7 +298,7 @@ namespace Replanetizer.Frames
                         InvalidateView();
                     }
                     ImGui.PushItemWidth(90.0f);
-                    if (ImGui.Combo("Antialiasing", ref antialiasing, antialiasingOptions, 1 + maxAntialiasing))
+                    if (ImGui.Combo("Antialiasing", ref antialiasing, antialiasingOptions, antialiasingOptions.Length))
                     {
                         UpdateAaLevel();
                         InvalidateView();
@@ -534,9 +531,9 @@ namespace Replanetizer.Frames
                 {
                     //Setup openGL variables
                     GL.Enable(EnableCap.DepthTest);
-                    GL.Viewport(0, 0, width, height);
+                    GL.Viewport(0, 0, renderer.RenderWidth, renderer.RenderHeight);
                     GL.Enable(EnableCap.ScissorTest);
-                    GL.Scissor(0, 0, width, height);
+                    GL.Scissor(0, 0, renderer.RenderWidth, renderer.RenderHeight);
 
                     OnPaint();
                 });
@@ -982,12 +979,7 @@ namespace Replanetizer.Frames
 
         private void UpdateAaLevel()
         {
-            if (antialiasing == 0)
-                GL.Disable(EnableCap.Multisample);
-            else
-                GL.Enable(EnableCap.Multisample);
-
-            FramebufferRenderer.MSAA_LEVEL = 1 << antialiasing;
+            FramebufferRenderer.SSAA_LEVEL_LOG = antialiasing;
         }
 
         protected void OnResize()
@@ -996,8 +988,8 @@ namespace Replanetizer.Frames
             GL.Viewport(0, 0, width, height);
 
             renderer?.Dispose();
-            renderer = new FramebufferRenderer(width, height);
             UpdateAaLevel();
+            renderer = new FramebufferRenderer(width, height, shaderTable.resolveShader);
         }
 
         public LevelObject? GetObjectAtScreenPosition(Vector2 pos)

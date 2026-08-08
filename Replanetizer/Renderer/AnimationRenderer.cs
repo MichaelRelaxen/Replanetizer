@@ -356,6 +356,7 @@ namespace Replanetizer.Renderer
             shaderTable.animationShader.SetUniform1(UniformName.useMetalShading, 0);
             shaderTable.animationShader.SetUniform1(UniformName.mainTexture, 0);
             shaderTable.animationShader.SetUniform1(UniformName.blueNoiseTexture, 1);
+            shaderTable.animationShader.SetUniform1(UniformName.ssaaLevelLog, FramebufferRenderer.SSAA_LEVEL_LOG);
             shaderTable.animationShader.SetUniform1(UniformName.levelObjectNumber, (mob != null) ? mob.globalID : 0);
             if (selected)
             {

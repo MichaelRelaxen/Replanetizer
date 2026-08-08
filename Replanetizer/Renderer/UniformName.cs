@@ -45,7 +45,10 @@ namespace Replanetizer.Renderer
         useTexture,
         useLighting,
         cameraPosition,
-        useMetalShading
+        useMetalShading,
+        ssaaLevelLog,
+        resolveTexture,
+        resolveSsaaLevel
     }
 
 }

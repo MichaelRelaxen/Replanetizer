@@ -1,8 +1,5 @@
 ﻿#version 330 core
 
-// MacOS seems to support this: https://www.geeks3d.com/20130611/apple-adds-opengl-4-support-in-os-x-10-9-mavericks/
-#extension GL_ARB_sample_shading : require
-
 // Interpolated values from the vertex shaders
 in vec2 UV;
 in vec3 lightColor;
@@ -20,25 +17,35 @@ uniform vec4 fogColor;
 uniform float objectBlendDistance;
 uniform int useTransparency;
 uniform int useTexture;
+uniform int ssaaLevelLog;
 
-#define BLUE_NOISE_TEXTURE_SIZE (128.0f)
 #define ONE_OVER_GOLDEN_RATIO (2654435769u) /* 0.61803398875f */
 
 bool computeDitheringDiscard(float alpha)
 {
+    if (alpha <= 0.0f)
+        return true;
+
     if (alpha >= 1.0f)
         return false;
 
-    vec2 pixel = vec2(gl_FragCoord.x, gl_FragCoord.y);
-    vec2 blueNoiseIndex = pixel / BLUE_NOISE_TEXTURE_SIZE;
-    float alphaThreshold = texture(blueNoiseTexture, blueNoiseIndex).x;
+    ivec2 internalPixel = ivec2(gl_FragCoord.xy);
+    ivec2 noiseSize = textureSize(blueNoiseTexture, 0);
+    ivec2 pixel = internalPixel.xy >> ssaaLevelLog;
+    ivec2 noisePixel = pixel % noiseSize;
+    float alphaThreshold = texelFetch(blueNoiseTexture, noisePixel, 0).x;
 
-    uint offsetIndex = uint(1 + gl_SampleID + levelObjectNumber * gl_NumSamples);
+    uint offsetIndex = uint(1 + levelObjectNumber);
 
-    float objectDitherOffset = offsetIndex * ONE_OVER_GOLDEN_RATIO;
+    float objectDitherOffset = float(offsetIndex * ONE_OVER_GOLDEN_RATIO);
     objectDitherOffset = objectDitherOffset / 0xFFFFFFFFu;
 
-    alphaThreshold = mod(alphaThreshold + objectDitherOffset, 1.0f);
+    ivec2 subpixel = internalPixel.xy & ((1 << ssaaLevelLog) - 1);
+
+    uint subpixelID = uint(subpixel.x + (1 << ssaaLevelLog) * subpixel.y);
+    float subpixelOffset = subpixelID * (1.0f / ((1 << ssaaLevelLog) * (1 << ssaaLevelLog)));
+
+    alphaThreshold = fract(alphaThreshold + objectDitherOffset + subpixelOffset);
 
     return (alphaThreshold > alpha);
 }
@@ -67,7 +74,7 @@ void main() {
     if (computeDitheringDiscard(alpha)) discard;
 
 	color.xyz = 1.5f * textureColor.xyz * lightColor * 2.0f;
-	color.w = textureColor.w;
+	color.w = 1.0f;
 
 	color.xyz = (fogColor.xyz - color.xyz) * fogBlend + color.xyz;
 

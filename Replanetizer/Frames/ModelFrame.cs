@@ -380,7 +380,7 @@ namespace Replanetizer.Frames
                     //Setup openGL variables
                     GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit);
                     GL.Enable(EnableCap.DepthTest);
-                    GL.Viewport(0, 0, width, height);
+                    GL.Viewport(0, 0, renderer.RenderWidth, renderer.RenderHeight);
 
                     OnPaint();
                 });
@@ -903,7 +903,7 @@ namespace Replanetizer.Frames
             camera.aspect = ((float) width) / height;
 
             renderer?.Dispose();
-            renderer = new FramebufferRenderer(width, height);
+            renderer = new FramebufferRenderer(width, height, shaderTable.resolveShader);
         }
 
         private void ExportSelectedModel()
