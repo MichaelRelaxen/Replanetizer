@@ -517,11 +517,9 @@ namespace Replanetizer.Renderer
                 GL.BindVertexArray(modelGPUData.vao);
                 shaderTable.colorShader.UseShader();
 
-                GL.Enable(EnableCap.LineSmooth);
                 GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Line);
                 GL.DrawElements(PrimitiveType.Triangles, model.indexBuffer.Length, DrawElementsType.UnsignedShort, 0);
                 GL.PolygonMode(TriangleFace.FrontAndBack, PolygonMode.Fill);
-                GL.Disable(EnableCap.LineSmooth);
             }
         }
 

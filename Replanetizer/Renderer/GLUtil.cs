@@ -35,13 +35,12 @@ namespace Replanetizer.Renderer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void LabelObject(ObjectLabelIdentifier objLabelIdent, int glObject, string name)
         {
-            GL.ObjectLabel(objLabelIdent, glObject, name.Length, name);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void CreateTexture(TextureTarget target, string name, out int texture)
         {
-            GL.CreateTextures(target, 1, out texture);
+            GL.GenTextures(1, out texture);
             LabelObject(ObjectLabelIdentifier.Texture, texture, $"Texture: {name}");
         }
 
@@ -62,7 +61,7 @@ namespace Replanetizer.Renderer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void CreateBuffer(string name, out int buffer)
         {
-            GL.CreateBuffers(1, out buffer);
+            GL.GenBuffers(1, out buffer);
             LabelObject(ObjectLabelIdentifier.Buffer, buffer, $"Buffer: {name}");
         }
 
@@ -75,7 +74,7 @@ namespace Replanetizer.Renderer
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void CreateVertexArray(string name, out int vao)
         {
-            GL.CreateVertexArrays(1, out vao);
+            GL.GenVertexArrays(1, out vao);
             LabelObject(ObjectLabelIdentifier.VertexArray, vao, $"VAO: {name}");
         }
 
