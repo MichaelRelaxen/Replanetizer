@@ -34,15 +34,49 @@ uniform int useFog;
 uniform vec4 fogParams;
 uniform vec4 staticColor;
 uniform int useLighting;
+uniform int useMetalShading;
+uniform vec3 cameraPosition;
+
+vec2 computeReflectionUV(vec3 reflectionDirection)
+{
+    // Project the unit sphere onto a centered disk using an azimuthal
+    // equidistant projection. The disk radius is 0.5 in UV space.
+    float directionLength = length(reflectionDirection);
+    if (directionLength < 0.0001f)
+        return vec2(0.5f, 0.5f);
+
+    reflectionDirection /= directionLength;
+
+    float z = clamp(reflectionDirection.z, -1.0f, 1.0f);
+    float xyLength = length(reflectionDirection.xy);
+    if (xyLength < 0.0001f)
+    {
+        // The front pole is the disk center. The opposite pole has no
+        // azimuth, so place it at a stable point on the disk boundary.
+        return z >= 0.0f ? vec2(0.5f, 0.5f) : vec2(0.5f, 0.0f);
+    }
+
+    float radius = acos(z) / 3.14159265359f;
+    vec2 diskDirection = reflectionDirection.xy / xyLength;
+    return vec2(0.5f, 0.5f) + 0.5f * radius * diskDirection;
+}
 
 void main() {
 	// Output position of the vertex, in clip space : MVP * position
-	gl_Position = worldToView * (modelToWorld * vec4(vertexPosition_modelspace, 1.0f));
+    vec3 worldPosition = (modelToWorld * vec4(vertexPosition_modelspace, 1.0f)).xyz;
+    gl_Position = worldToView * vec4(worldPosition, 1.0f);
 
 	vec3 normal = normalize((modelToWorld * vec4(vertexNormal, 0.0f)).xyz);
 
 	// UV of the vertex. No special space for this one.
-	UV = vertexUV;
+    if (useMetalShading != 0) {
+        vec3 viewDirection = normalize(worldPosition - cameraPosition);
+        vec3 reflectionDirection = reflect(viewDirection, normal);
+        UV = computeReflectionUV(reflectionDirection);
+    }
+    else {
+        UV = vertexUV;
+    }
 
     // Light color is precomputed on PS3 but we do it here instead.
     if (useLighting == 1) {

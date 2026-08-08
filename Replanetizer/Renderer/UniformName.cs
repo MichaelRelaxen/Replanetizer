@@ -44,7 +44,8 @@ namespace Replanetizer.Renderer
         resolution,
         useTexture,
         useLighting,
-        cameraPosition
+        cameraPosition,
+        useMetalShading
     }
 
 }

@@ -105,8 +105,14 @@ namespace Replanetizer.Renderer
 
             GL.GenBuffers(1, out ibo);
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, ibo);
+            int regularVertexCount = model.GetVertices().Length / 8;
+            ushort[] metalIndices = new ushort[metalModel.metalIndexBuffer.Length];
+            for (int i = 0; i < metalIndices.Length; i++)
+            {
+                metalIndices[i] = (ushort) (metalModel.metalIndexBuffer[i] - regularVertexCount);
+            }
             GL.BufferData(BufferTarget.ElementArrayBuffer,
-                metalModel.metalIndexBuffer.Length * sizeof(ushort), metalModel.metalIndexBuffer, BufferUsageHint.StaticDraw);
+                metalIndices.Length * sizeof(ushort), metalIndices, BufferUsageHint.StaticDraw);
 
             float[] vertices = BuildMetalVertexData(metalModel, layout);
             GL.GenBuffers(1, out vbo);

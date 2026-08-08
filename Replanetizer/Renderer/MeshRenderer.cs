@@ -258,9 +258,9 @@ namespace Replanetizer.Renderer
             shaderTable.meshShader.SetUniform1(UniformName.useTransparency, (config.IgnoresTransparency()) ? 0 : 1);
         }
 
-        private void SetTextureMode(TextureConfig config)
+        private void SetTextureMode(TextureConfig config, bool bIsMetalTexture)
         {
-            shaderTable.meshShader.SetUniform1(UniformName.useTexture, (config.id >= 0) ? 1 : 0);
+            shaderTable.meshShader.SetUniform1(UniformName.useTexture, (config.id >= 0 || bIsMetalTexture) ? 1 : 0);
         }
 
         /// <summary>
@@ -455,6 +455,7 @@ namespace Replanetizer.Renderer
             GL.BindVertexArray(modelGPUData.vao);
 
             shaderTable.meshShader.UseShader();
+            shaderTable.meshShader.SetUniform1(UniformName.useMetalShading, 0);
 
             //Bind textures one by one, applying it to the relevant vertices based on the index array
             foreach (TextureConfig conf in model.textureConfig)
@@ -471,7 +472,7 @@ namespace Replanetizer.Renderer
                 }
 
                 SetTransparencyMode(conf);
-                SetTextureMode(conf);
+                SetTextureMode(conf, false);
                 GL.DrawElements(PrimitiveType.Triangles, conf.size, DrawElementsType.UnsignedShort, conf.start * sizeof(ushort));
             }
 
@@ -480,9 +481,14 @@ namespace Replanetizer.Renderer
                 && modelGPUData.metalIndexCount > 0)
             {
                 GL.BindVertexArray(modelGPUData.metalVao);
+                shaderTable.meshShader.SetUniform1(UniformName.useMetalShading, 1);
+
+                GL.Enable(EnableCap.PolygonOffsetFill);
+                GL.PolygonOffset(-1.0f, -1.0f);
 
                 foreach (TextureConfig conf in metalModel.metalTextureConfig)
                 {
+#if false
                     if (conf.id >= 0 && conf.id < textures.Count)
                     {
                         GLTexture tex = textureIds[textures[conf.id]];
@@ -493,11 +499,17 @@ namespace Replanetizer.Renderer
                     {
                         GLTexture.BindNull();
                     }
+#endif
+                    GLTexture tex = textureIds[textures[0]];
+                    tex.Bind();
+                    SetTextureWrapMode(conf, tex);
 
                     SetTransparencyMode(conf);
-                    SetTextureMode(conf);
-                    GL.DrawElements(PrimitiveType.Triangles, conf.size, DrawElementsType.UnsignedShort, conf.start * sizeof(ushort));
+                    SetTextureMode(conf, true);
+                    GL.DrawElements(PrimitiveType.Triangles, conf.size, DrawElementsType.UnsignedShort, (conf.start - model.faceCount * 3) * sizeof(ushort));
                 }
+
+                GL.Disable(EnableCap.PolygonOffsetFill);
             }
 
             if (selected)
@@ -565,6 +577,7 @@ namespace Replanetizer.Renderer
             shaderTable.meshShader.SetUniform1(UniformName.blueNoiseTexture, 1);
             shaderTable.meshShader.SetUniformMatrix4(UniformName.modelToWorld, ref modelToWorld);
             shaderTable.meshShader.SetUniformMatrix4(UniformName.worldToView, ref worldToView);
+            shaderTable.meshShader.SetUniform3(UniformName.cameraPosition, payload.camera.position);
             shaderTable.meshShader.SetUniform1(UniformName.levelObjectNumber, objectID);
             shaderTable.meshShader.SetUniform1(UniformName.levelObjectType, (int) type);
             shaderTable.meshShader.SetUniform4(UniformName.staticColor, ambient);

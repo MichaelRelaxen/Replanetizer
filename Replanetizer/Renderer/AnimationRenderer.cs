@@ -352,6 +352,8 @@ namespace Replanetizer.Renderer
             Matrix4 worldToView = payload.camera.GetWorldViewMatrix();
             shaderTable.animationShader.SetUniformMatrix4(UniformName.modelToWorld, ref modelToWorld);
             shaderTable.animationShader.SetUniformMatrix4(UniformName.worldToView, ref worldToView);
+            shaderTable.animationShader.SetUniform3(UniformName.cameraPosition, payload.camera.position);
+            shaderTable.animationShader.SetUniform1(UniformName.useMetalShading, 0);
             shaderTable.animationShader.SetUniform1(UniformName.mainTexture, 0);
             shaderTable.animationShader.SetUniform1(UniformName.blueNoiseTexture, 1);
             shaderTable.animationShader.SetUniform1(UniformName.levelObjectNumber, (mob != null) ? mob.globalID : 0);
