@@ -56,17 +56,19 @@ namespace Replanetizer.Renderer
 
         private List<Texture> textures;
         private Dictionary<Texture, GLTexture> textureIds;
+        private readonly GLTexture metalTexture;
         private ShaderTable shaderTable;
         private BillboardRenderer fallback;
         private AnimationRenderer? animationRenderer = null;
         private readonly ModelGPUDataCache gpuDataCache;
         private ModelGPUData? gpuData;
 
-        public MeshRenderer(ShaderTable shaderTable, List<Texture> textures, Dictionary<Texture, GLTexture> textureIds, List<Animation>? ratchetAnimations = null, ModelGPUDataCache? gpuDataCache = null)
+        public MeshRenderer(ShaderTable shaderTable, List<Texture> textures, Dictionary<Texture, GLTexture> textureIds, GLTexture metalTexture, List<Animation>? ratchetAnimations = null, ModelGPUDataCache? gpuDataCache = null)
         {
             this.shaderTable = shaderTable;
             this.textureIds = textureIds;
             this.textures = textures;
+            this.metalTexture = metalTexture;
             this.ratchetAnimations = ratchetAnimations;
             this.gpuDataCache = gpuDataCache ?? new ModelGPUDataCache();
             this.fallback = new BillboardRenderer(shaderTable);
@@ -154,7 +156,7 @@ namespace Replanetizer.Renderer
 
                 if (modelObject is Moby mob)
                 {
-                    animationRenderer = new AnimationRenderer(shaderTable, textures, textureIds, ratchetAnimations, gpuDataCache);
+                    animationRenderer = new AnimationRenderer(shaderTable, textures, textureIds, metalTexture, ratchetAnimations, gpuDataCache);
                     animationRenderer.Include(mob);
                 }
             }
@@ -164,7 +166,7 @@ namespace Replanetizer.Renderer
 
                 if (modelStandalone is MobyModel mobyModel)
                 {
-                    animationRenderer = new AnimationRenderer(shaderTable, textures, textureIds, ratchetAnimations, gpuDataCache);
+                    animationRenderer = new AnimationRenderer(shaderTable, textures, textureIds, metalTexture, ratchetAnimations, gpuDataCache);
                     animationRenderer.Include(mobyModel);
                 }
             }
@@ -269,9 +271,9 @@ namespace Replanetizer.Renderer
             shaderTable.meshShader.SetUniform1(UniformName.useTransparency, (config.IgnoresTransparency()) ? 0 : 1);
         }
 
-        private void SetTextureMode(TextureConfig config, bool bIsMetalTexture)
+        private void SetTextureMode(TextureConfig config)
         {
-            shaderTable.meshShader.SetUniform1(UniformName.useTexture, (config.id >= 0 || bIsMetalTexture) ? 1 : 0);
+            shaderTable.meshShader.SetUniform1(UniformName.useTexture, (config.id >= 0) ? 1 : 0);
         }
 
         /// <summary>
@@ -494,13 +496,11 @@ namespace Replanetizer.Renderer
                 }
 
                 SetTransparencyMode(conf);
-                SetTextureMode(conf, false);
+                SetTextureMode(conf);
                 GL.DrawElements(PrimitiveType.Triangles, conf.size, DrawElementsType.UnsignedShort, conf.start * sizeof(ushort));
             }
 
-            if (model is MetalModel metalModel
-                && modelGPUData.metalVao != 0
-                && modelGPUData.metalIndexCount > 0)
+            if (model is MetalModel metalModel && modelGPUData.metalVao != 0 && modelGPUData.metalIndexCount > 0)
             {
                 GL.BindVertexArray(modelGPUData.metalVao);
                 shaderTable.meshShader.SetUniform1(UniformName.useMetalShading, 1);
@@ -510,24 +510,11 @@ namespace Replanetizer.Renderer
 
                 foreach (TextureConfig conf in metalModel.metalTextureConfig)
                 {
-#if false
-                    if (conf.id >= 0 && conf.id < textures.Count)
-                    {
-                        GLTexture tex = textureIds[textures[conf.id]];
-                        tex.Bind();
-                        SetTextureWrapMode(conf, tex);
-                    }
-                    else
-                    {
-                        GLTexture.BindNull();
-                    }
-#endif
-                    GLTexture tex = textureIds[textures[0]];
-                    tex.Bind();
-                    SetTextureWrapMode(conf, tex);
+                    metalTexture.Bind();
+                    SetTextureWrapMode(conf, metalTexture);
 
                     SetTransparencyMode(conf);
-                    SetTextureMode(conf, true);
+                    SetTextureMode(conf);
                     GL.DrawElements(PrimitiveType.Triangles, conf.size, DrawElementsType.UnsignedShort, (conf.start - model.faceCount * 3) * sizeof(ushort));
                 }
 

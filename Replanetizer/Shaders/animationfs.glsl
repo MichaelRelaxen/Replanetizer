@@ -17,6 +17,7 @@ uniform vec4 fogColor;
 uniform float objectBlendDistance;
 uniform int useTransparency;
 uniform int useTexture;
+uniform int useMetalShading;
 uniform int ssaaLevelLog;
 
 #define ONE_OVER_GOLDEN_RATIO (2654435769u) /* 0.61803398875f */
@@ -53,7 +54,7 @@ bool computeDitheringDiscard(float alpha)
 void main() {
 	//color of the texture at the specified UV
     vec4 textureColor;
-    if (useTexture == 1) {
+    if (useTexture != 0 || useMetalShading != 0) {
         textureColor = texture(mainTexture, UV);
     }
     else {

@@ -48,6 +48,7 @@ namespace Replanetizer.Renderer
 
         private List<Texture> textures;
         private Dictionary<Texture, GLTexture> textureIds;
+        private readonly GLTexture metalTexture;
         private ShaderTable shaderTable;
 
         // The Ratchet moby does not contain its own animations.
@@ -61,11 +62,12 @@ namespace Replanetizer.Renderer
         private readonly ModelGPUDataCache gpuDataCache;
         private ModelGPUData? gpuData;
 
-        public AnimationRenderer(ShaderTable shaderTable, List<Texture> textures, Dictionary<Texture, GLTexture> textureIds, List<Animation>? ratchetAnimations = null, ModelGPUDataCache? gpuDataCache = null)
+        public AnimationRenderer(ShaderTable shaderTable, List<Texture> textures, Dictionary<Texture, GLTexture> textureIds, GLTexture metalTexture, List<Animation>? ratchetAnimations = null, ModelGPUDataCache? gpuDataCache = null)
         {
             this.shaderTable = shaderTable;
             this.textureIds = textureIds;
             this.textures = textures;
+            this.metalTexture = metalTexture;
             this.ratchetAnimations = ratchetAnimations;
             this.gpuDataCache = gpuDataCache ?? new ModelGPUDataCache();
         }
@@ -321,9 +323,11 @@ namespace Replanetizer.Renderer
             return false;
         }
 
-        private void RenderModel(Model model, int modelVAO)
+        private void RenderModel(Model model, ModelGPUData modelGPUData)
         {
-            GL.BindVertexArray(modelVAO);
+            GL.BindVertexArray(modelGPUData.vao);
+
+            shaderTable.animationShader.SetUniform1(UniformName.useMetalShading, 0);
 
             //Bind textures one by one, applying it to the relevant vertices based on the index array
             foreach (TextureConfig conf in model.textureConfig)
@@ -342,6 +346,27 @@ namespace Replanetizer.Renderer
                 SetTransparencyMode(conf);
                 SetTextureMode(conf);
                 GL.DrawElements(PrimitiveType.Triangles, conf.size, DrawElementsType.UnsignedShort, conf.start * sizeof(ushort));
+            }
+
+            if (model is MetalModel metalModel && modelGPUData.metalVao != 0 && modelGPUData.metalIndexCount > 0)
+            {
+                GL.BindVertexArray(modelGPUData.metalVao);
+                shaderTable.animationShader.SetUniform1(UniformName.useMetalShading, 1);
+
+                GL.Enable(EnableCap.PolygonOffsetFill);
+                GL.PolygonOffset(-1.0f, -1.0f);
+
+                foreach (TextureConfig conf in metalModel.metalTextureConfig)
+                {
+                    metalTexture.Bind();
+                    SetTextureWrapMode(conf, metalTexture);
+
+                    SetTransparencyMode(conf);
+                    SetTextureMode(conf);
+                    GL.DrawElements(PrimitiveType.Triangles, conf.size, DrawElementsType.UnsignedShort, (conf.start - model.faceCount * 3) * sizeof(ushort));
+                }
+
+                GL.Disable(EnableCap.PolygonOffsetFill);
             }
         }
 
@@ -503,7 +528,7 @@ namespace Replanetizer.Renderer
 
             shaderTable.animationShader.SetUniformMatrix4(UniformName.bones, mobyModel.boneCount, ref boneMatrices[0].Row0.X);
 
-            RenderModel(mobyModel, gpuData.vao);
+            RenderModel(mobyModel, gpuData);
 
             int subModelCount = mobyModel.GetSubModelCount();
             for (int i = 0; i < subModelCount; i++)
@@ -515,7 +540,7 @@ namespace Replanetizer.Renderer
 
                 if (subModel == null || modelGPUData == null) continue;
 
-                RenderModel(subModel, modelGPUData.vao);
+                RenderModel(subModel, modelGPUData);
             }
 
             GLUtil.CheckGlError("AnimationRenderer");

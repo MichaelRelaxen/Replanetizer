@@ -115,7 +115,8 @@ namespace Replanetizer.Frames
             UpdateZoom(0.0f);
             UpdateCamera();
 
-            meshRenderer = new MeshRenderer(shaderIDTable, levelFrame.level.textures, levelFrame.textureIds, levelFrame.level.playerAnimations, gpuDataCache);
+            meshRenderer = new MeshRenderer(shaderIDTable, levelFrame.level.textures, levelFrame.textureIds,
+                levelFrame.textureIds[levelFrame.level.textures[0]], levelFrame.level.playerAnimations, gpuDataCache);
             rendererPayload = new RendererPayload(camera);
 
             sortedMobyModels = new List<Model>(level.mobyModels);

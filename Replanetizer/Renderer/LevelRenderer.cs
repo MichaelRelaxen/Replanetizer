@@ -79,21 +79,21 @@ namespace Replanetizer.Renderer
 
             foreach (Moby mob in level.mobs)
             {
-                MeshRenderer mobRenderer = new MeshRenderer(shaderTable, textures, textureIDs, null, gpuDataCache);
+                MeshRenderer mobRenderer = new MeshRenderer(shaderTable, textures, textureIDs, textureIDs[level.textures[0]], null, gpuDataCache);
                 mobRenderer.Include(mob);
                 mobyRenderers.Add(mobRenderer);
             }
 
             foreach (Shrub shrub in level.shrubs)
             {
-                MeshRenderer shrubRenderer = new MeshRenderer(shaderTable, textures, textureIDs, null, gpuDataCache);
+                MeshRenderer shrubRenderer = new MeshRenderer(shaderTable, textures, textureIDs, textureIDs[level.textures[0]], null, gpuDataCache);
                 shrubRenderer.Include(shrub);
                 shrubRenderers.Add(shrubRenderer);
             }
 
             foreach (Tie tie in level.ties)
             {
-                MeshRenderer tieRenderer = new MeshRenderer(shaderTable, textures, textureIDs, null, gpuDataCache);
+                MeshRenderer tieRenderer = new MeshRenderer(shaderTable, textures, textureIDs, textureIDs[level.textures[0]], null, gpuDataCache);
                 tieRenderer.Include(tie);
                 tieRenderers.Add(tieRenderer);
             }
@@ -105,7 +105,7 @@ namespace Replanetizer.Renderer
                     List<MeshRenderer> terrainRenderer = new List<MeshRenderer>();
                     foreach (TerrainFragment fragment in terrainChunk.fragments)
                     {
-                        MeshRenderer fragmentRenderer = new MeshRenderer(shaderTable, textures, textureIDs, null, gpuDataCache);
+                        MeshRenderer fragmentRenderer = new MeshRenderer(shaderTable, textures, textureIDs, textureIDs[level.textures[0]], null, gpuDataCache);
                         fragmentRenderer.Include(fragment);
                         terrainRenderer.Add(fragmentRenderer);
                     }
@@ -117,7 +117,7 @@ namespace Replanetizer.Renderer
                 List<MeshRenderer> terrainRenderer = new List<MeshRenderer>();
                 foreach (TerrainFragment fragment in level.terrainEngine.fragments)
                 {
-                    MeshRenderer fragmentRenderer = new MeshRenderer(shaderTable, textures, textureIDs, null, gpuDataCache);
+                    MeshRenderer fragmentRenderer = new MeshRenderer(shaderTable, textures, textureIDs, textureIDs[level.textures[0]], null, gpuDataCache);
                     fragmentRenderer.Include(fragment);
                     terrainRenderer.Add(fragmentRenderer);
                 }
@@ -168,7 +168,7 @@ namespace Replanetizer.Renderer
                 throw new NullReferenceException();
             }
 
-            MeshRenderer shrubRenderer = new MeshRenderer(shaderTable, textures, textureIDs, null, gpuDataCache);
+            MeshRenderer shrubRenderer = new MeshRenderer(shaderTable, textures, textureIDs, textureIDs[textures[0]], null, gpuDataCache);
             shrubRenderer.Include(shrub);
             shrubRenderers.Add(shrubRenderer);
         }
@@ -180,7 +180,7 @@ namespace Replanetizer.Renderer
                 throw new NullReferenceException();
             }
 
-            MeshRenderer tieRenderer = new MeshRenderer(shaderTable, textures, textureIDs, null, gpuDataCache);
+            MeshRenderer tieRenderer = new MeshRenderer(shaderTable, textures, textureIDs, textureIDs[textures[0]], null, gpuDataCache);
             tieRenderer.Include(tie);
             tieRenderers.Add(tieRenderer);
         }
@@ -192,7 +192,7 @@ namespace Replanetizer.Renderer
                 throw new NullReferenceException();
             }
 
-            MeshRenderer mobRenderer = new MeshRenderer(shaderTable, textureOverride ?? textures, textureIDs, null, gpuDataCache);
+            MeshRenderer mobRenderer = new MeshRenderer(shaderTable, textureOverride ?? textures, textureIDs, textureIDs[textures[0]], null, gpuDataCache);
             mobRenderer.Include(mob);
             mobyRenderers.Add(mobRenderer);
         }
