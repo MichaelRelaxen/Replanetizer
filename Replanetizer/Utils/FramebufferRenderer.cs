@@ -44,13 +44,6 @@ namespace Replanetizer.Utils
             int maxTextureSize = GL.GetInteger(GetPName.MaxTextureSize);
             if (RenderWidth > maxTextureSize || RenderHeight > maxTextureSize)
             {
-#if DEBUG
-                FramebufferErrorCode status = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
-                if (status != FramebufferErrorCode.FramebufferComplete)
-                {
-                    LOGGER.Debug($"SSAA render size {RenderWidth}x{RenderHeight} exceeds the maximum texture size of {maxTextureSize}.");
-                }
-#endif
                 if (SSAA_LEVEL_LOG > 0)
                 {
                     SSAA_LEVEL_LOG--;
@@ -83,7 +76,6 @@ namespace Replanetizer.Utils
             GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, targetTexture, 0);
             GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment1, TextureTarget.Texture2D, typeTexture, 0);
             GL.FramebufferRenderbuffer(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, RenderbufferTarget.Renderbuffer, renderbufferID);
-            CheckFramebufferComplete(framebufferID);
 
             outputTexture = GL.GenTexture();
             GL.BindTexture(TextureTarget.Texture2D, outputTexture);
@@ -101,19 +93,7 @@ namespace Replanetizer.Utils
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, outputFramebufferID);
             GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, outputTexture, 0);
             GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment1, TextureTarget.Texture2D, outputTypeTexture, 0);
-            CheckFramebufferComplete(outputFramebufferID);
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-        }
-
-        private static void CheckFramebufferComplete(int framebuffer)
-        {
-#if DEBUG
-            FramebufferErrorCode status = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
-            if (status != FramebufferErrorCode.FramebufferComplete)
-            {
-                LOGGER.Debug($"Framebuffer {framebuffer} is incomplete: {status}.");
-            }
-#endif
         }
 
         public FramebufferRenderer(int width, int height, Shader resolveShader)
