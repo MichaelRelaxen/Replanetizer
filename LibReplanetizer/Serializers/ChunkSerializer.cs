@@ -21,7 +21,7 @@ namespace LibReplanetizer.Serializers
 
             directory = Path.Join(directory, "chunk" + chunk + ".ps3");
 
-            ReplanetizerFileStream fs = new ReplanetizerFileStream(directory, FileMode.Create, FileAccess.Write);
+            FileStream fs = ReplanetizerFileStream.Open(directory, FileMode.Create, FileAccess.Write);
 
             // Seek past the header
             fs.Seek(0x10, SeekOrigin.Begin);
