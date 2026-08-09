@@ -189,7 +189,7 @@ namespace Replanetizer.Renderer
             {
                 light = Math.Max(0, Math.Min(ALLOCATED_LIGHTS, mob.light)); ;
                 ambient = mob.color;
-                renderDistance = mob.drawDistance;
+                renderDistance = (mob.drawDistance > 0.0f) ? mob.drawDistance : float.MaxValue;
                 modelID = mob.modelID;
             }
             else if (mobyModelStandalone != null)
@@ -304,9 +304,11 @@ namespace Replanetizer.Renderer
             {
                 float dist = (mob.position - camera.position).Length;
 
-                blendDistance = MathF.Max(0.125f * (dist - renderDistance), 0.0f);
+                float blendScale = 32.0f;
 
-                if (dist > renderDistance + 8.0f)
+                blendDistance = MathF.Max((dist - renderDistance) / blendScale, 0.0f);
+
+                if (dist > renderDistance + blendScale)
                 {
                     return true;
                 }

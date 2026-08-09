@@ -20,7 +20,7 @@ namespace LibReplanetizer.LevelObjects
     {
         public const int ELEMENTSIZE = 0x70;
 
-        [Category("Attributes"), DisplayName("Draw Distance"), Description("The distance at which an object will start fading out. After a distance of 8 more units, the object will stop being drawn.")]
+        [Category("Attributes"), DisplayName("Draw Distance"), Description("The distance at which an object will start fading out. After a distance of 8 or more units, the object will stop being drawn.")]
         public float drawDistance { get; set; }
         [Category("Unknowns"), DisplayName("OFF_58: Always 0")]
         public uint off58 { get; set; }

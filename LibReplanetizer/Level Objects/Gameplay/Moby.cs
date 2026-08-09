@@ -139,7 +139,7 @@ namespace LibReplanetizer.LevelObjects
         [Category("Attributes"), DisplayName("Moby ID")]
         public int mobyID { get; set; }
 
-        [Category("Attributes"), DisplayName("Draw Distance"), Description("The distance at which an object will start fading out. After a distance of 8 more units, the object will stop being drawn.")]
+        [Category("Attributes"), DisplayName("Draw Distance"), Description("The distance at which an object will start fading out. After a distance of 32 or more units, the object will stop being drawn.")]
         public int drawDistance { get; set; }
 
         [Category("Attributes"), DisplayName("Update Distance")]

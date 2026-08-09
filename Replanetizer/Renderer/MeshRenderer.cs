@@ -220,7 +220,7 @@ namespace Replanetizer.Renderer
                         Moby mob = (Moby) modelObject;
                         light = Math.Max(0, Math.Min(ALLOCATED_LIGHTS, mob.light));
                         mob.color.ToRgba32(ref ambient);
-                        renderDistance = mob.drawDistance;
+                        renderDistance = (mob.drawDistance > 0.0f) ? mob.drawDistance : float.MaxValue;
                         break;
                     case RenderedObjectType.Tie:
                         Tie tie = (Tie) modelObject;
@@ -353,9 +353,13 @@ namespace Replanetizer.Renderer
             {
                 float dist = (modelObject.position - camera.position).Length;
 
-                blendDistance = MathF.Max(0.125f * (dist - renderDistance), 0.0f);
+                float blendScale = 8.0f;
+                if (type == RenderedObjectType.Moby)
+                    blendScale = 32.0f;
 
-                if (dist > renderDistance + 8.0f)
+                blendDistance = MathF.Max((dist - renderDistance) / blendScale, 0.0f);
+
+                if (dist > renderDistance + blendScale)
                 {
                     return true;
                 }
