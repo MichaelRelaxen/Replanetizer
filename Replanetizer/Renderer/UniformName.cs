@@ -23,6 +23,7 @@ namespace Replanetizer.Renderer
         mainTexture,
         blueNoiseTexture,
         worldToView,
+        viewMatrix,
         modelToWorld,
         levelObjectType,
         levelObjectNumber,

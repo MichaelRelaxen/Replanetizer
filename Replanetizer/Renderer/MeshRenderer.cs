@@ -576,7 +576,8 @@ namespace Replanetizer.Renderer
             shaderTable.meshShader.SetUniform1(UniformName.ssaaLevelLog, FramebufferRenderer.SSAA_LEVEL_LOG);
             shaderTable.meshShader.SetUniformMatrix4(UniformName.modelToWorld, ref modelToWorld);
             shaderTable.meshShader.SetUniformMatrix4(UniformName.worldToView, ref worldToView);
-            shaderTable.meshShader.SetUniform3(UniformName.cameraPosition, payload.camera.position);
+            Matrix4 viewMatrix = payload.camera.GetViewMatrix();
+            shaderTable.meshShader.SetUniformMatrix4(UniformName.viewMatrix, ref viewMatrix);
             shaderTable.meshShader.SetUniform1(UniformName.levelObjectNumber, objectID);
             shaderTable.meshShader.SetUniform1(UniformName.levelObjectType, (int) type);
             shaderTable.meshShader.SetUniform4(UniformName.staticColor, ambient);

@@ -27,6 +27,7 @@ out float fogBlend;
 
 // Values that stay constant for the whole mesh.
 uniform mat4 worldToView;
+uniform mat4 viewMatrix;
 uniform mat4 modelToWorld;
 uniform mat4 bones[128];
 uniform int lightIndex;
@@ -35,31 +36,6 @@ uniform vec4 fogParams;
 uniform vec4 staticColor;
 uniform int useLighting;
 uniform int useMetalShading;
-uniform vec3 cameraPosition;
-
-vec2 computeReflectionUV(vec3 reflectionDirection)
-{
-    // Project the unit sphere onto a centered disk using an azimuthal
-    // equidistant projection. The disk radius is 0.5 in UV space.
-    float directionLength = length(reflectionDirection);
-    if (directionLength < 0.0001f)
-        return vec2(0.5f, 0.5f);
-
-    reflectionDirection /= directionLength;
-
-    float z = clamp(reflectionDirection.z, -1.0f, 1.0f);
-    float xyLength = length(reflectionDirection.xy);
-    if (xyLength < 0.0001f)
-    {
-        // The front pole is the disk center. The opposite pole has no
-        // azimuth, so place it at a stable point on the disk boundary.
-        return z >= 0.0f ? vec2(0.5f, 0.5f) : vec2(0.5f, 0.0f);
-    }
-
-    float radius = acos(z) / 3.14159265359f;
-    vec2 diskDirection = reflectionDirection.xy / xyLength;
-    return vec2(0.5f, 0.5f) + 0.5f * radius * diskDirection;
-}
 
 void main() {
     vec4 position = vec4(0.0f);
@@ -80,9 +56,8 @@ void main() {
 
 	// UV of the vertex. No special space for this one.
     if (useMetalShading != 0) {
-        vec3 viewDirection = normalize(worldPosition - cameraPosition);
-        vec3 reflectionDirection = reflect(viewDirection, normal.xyz);
-        UV = computeReflectionUV(reflectionDirection);
+        vec3 viewNormal = normalize((viewMatrix * normal).xyz);
+        UV = vec2(0.5f) + vec2(-0.5f,0.5f) * viewNormal.xy;
     }
     else {
         UV = vertexUV;
