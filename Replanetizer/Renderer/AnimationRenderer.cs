@@ -288,11 +288,17 @@ namespace Replanetizer.Renderer
         /// Mobies and shrubs are culled by their drawDistance.
         /// Ties, terrain and shrubs are culled by frustum culling.
         /// </summary>
-        private bool ComputeCulling(Camera camera, bool distanceCulling)
+        private bool ComputeCulling(Camera camera, bool distanceCulling, bool visibleCulling)
         {
             if (emptyModel) return true;
             if (mobyModelStandalone != null) return false;
             if (mob == null) return true;
+
+            if (visibleCulling && mob.memory != null)
+            {
+                if (mob.memory.visible == 0)
+                    return true;
+            }
 
             if (distanceCulling)
             {
@@ -345,7 +351,7 @@ namespace Replanetizer.Renderer
 
             if (emptyModel || gpuData == null) return;
 
-            if (ComputeCulling(payload.camera, payload.visibility.enableDistanceCulling)) return;
+            if (ComputeCulling(payload.camera, payload.visibility.enableDistanceCulling, payload.visibility.enableVisibleCulling)) return;
 
             MobyModel? mobyModel = (MobyModel?) mob?.model ?? mobyModelStandalone;
 

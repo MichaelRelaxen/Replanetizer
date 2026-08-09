@@ -731,6 +731,7 @@ namespace LibReplanetizer.LevelObjects
             public uint unk80 { get; set; }
             public int unk84 { get; set; }
             public int unk88 { get; set; }
+            public uint collCount { get; set; }
             public ushort oClass { get; set; }
             public ushort UID { get; set; }
             public Matrix3x4 transformation { get; set; }
@@ -741,12 +742,13 @@ namespace LibReplanetizer.LevelObjects
 
             public bool IsDead()
             {
-                return (state & 0x80) > 0 || oClass == 0xFFFF || UID == 0xFFFF;
+                // TODO: moby->collCnt <= worldUpdateTime is also a necessary condition for dead mobies!
+                return state > 0xFD;
             }
 
             public void SetDead()
             {
-                state |= 0x80;
+                state = 0xFE;
             }
 
             public void UpdateRC1(byte[] memory, int offset)
@@ -808,6 +810,7 @@ namespace LibReplanetizer.LevelObjects
                 unk84 = ReadInt(memory, offset + 0x84);
                 unk88 = ReadInt(memory, offset + 0x88);
 
+                collCount = ReadUint(memory, offset + 0xA0);
                 oClass = ReadUshort(memory, offset + 0xA6);
 
                 UID = ReadUshort(memory, offset + 0xB2);
@@ -857,6 +860,7 @@ namespace LibReplanetizer.LevelObjects
                 unk58 = ReadFloat(memory, offset + 0x48);
                 frameSpeed = ReadFloat(memory, offset + 0x4C);
 
+                collCount = ReadUint(memory, offset + 0xA0);
                 oClass = ReadUshort(memory, offset + 0xAA);
 
                 UID = ReadUshort(memory, offset + 0xB2);

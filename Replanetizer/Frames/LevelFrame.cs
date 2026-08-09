@@ -289,6 +289,7 @@ namespace Replanetizer.Frames
                     if (ImGui.Checkbox("Transparency", ref rendererPayload.visibility.enableTransparency)) InvalidateView();
                     if (ImGui.Checkbox("Distance Culling", ref rendererPayload.visibility.enableDistanceCulling)) InvalidateView();
                     if (ImGui.Checkbox("Frustum Culling", ref rendererPayload.visibility.enableFrustumCulling)) InvalidateView();
+                    if (interactiveSession && ImGui.Checkbox("Visible Culling", ref rendererPayload.visibility.enableVisibleCulling)) InvalidateView();
                     if (ImGui.Checkbox("Fog", ref rendererPayload.visibility.enableFog)) InvalidateView();
                     if (ImGui.Checkbox("Lighting", ref rendererPayload.visibility.enableLighting)) InvalidateView();
                     if (ImGui.Checkbox("Meshless Models", ref rendererPayload.visibility.enableMeshlessModels)) InvalidateView();
