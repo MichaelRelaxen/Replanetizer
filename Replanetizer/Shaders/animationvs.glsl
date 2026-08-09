@@ -48,6 +48,12 @@ void main() {
         normal += (bones[index] * baseNormal) * vertexBoneWeight[i];
     }
 
+    float weightSum = dot(vertexBoneWeight, vec4(1.0f));
+    if (weightSum > 0.0f) {
+        position /= weightSum;
+        normal /= weightSum;
+    }
+
 	// Output position of the vertex, in clip space : MVP * position
     vec3 worldPosition = (modelToWorld * position).xyz;
     gl_Position = worldToView * vec4(worldPosition, 1.0f);
