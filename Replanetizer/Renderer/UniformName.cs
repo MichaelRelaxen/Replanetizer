@@ -23,6 +23,7 @@ namespace Replanetizer.Renderer
         mainTexture,
         blueNoiseTexture,
         worldToView,
+        viewMatrix,
         modelToWorld,
         levelObjectType,
         levelObjectNumber,
@@ -44,7 +45,11 @@ namespace Replanetizer.Renderer
         resolution,
         useTexture,
         useLighting,
-        cameraPosition
+        cameraPosition,
+        useMetalShading,
+        ssaaLevelLog,
+        resolveTexture,
+        resolveSsaaLevel
     }
 
 }

@@ -7,13 +7,15 @@
 
 using System;
 using OpenTK.Graphics.OpenGL;
+using Replanetizer.Renderer;
 
 namespace Replanetizer.Utils
 {
     public class FramebufferRenderer : IDisposable
     {
-        public static int MSAA_LEVEL = 8;
-        private int internalAllocatedMsaaLevel;
+        public static int SSAA_LEVEL_LOG = 1;
+        public static int SSAA_LEVEL { get { return 1 << SSAA_LEVEL_LOG; } }
+        private int internalAllocatedSsaaLevel;
 
         private bool disposed = false;
 
@@ -26,27 +28,50 @@ namespace Replanetizer.Utils
         private int outputFramebufferID;
 
         private int width, height;
+        private readonly Shader resolveShader;
+        public int RenderWidth { get; private set; }
+        public int RenderHeight { get; private set; }
 
         private void AllocateAllResources()
         {
-            internalAllocatedMsaaLevel = MSAA_LEVEL;
+            internalAllocatedSsaaLevel = SSAA_LEVEL;
+            RenderWidth = checked(width * SSAA_LEVEL);
+            RenderHeight = checked(height * SSAA_LEVEL);
+
+            int maxTextureSize = GL.GetInteger(GetPName.MaxTextureSize);
+            if (RenderWidth > maxTextureSize || RenderHeight > maxTextureSize)
+            {
+                if (SSAA_LEVEL_LOG > 0)
+                {
+                    SSAA_LEVEL_LOG--;
+
+                    AllocateAllResources();
+                    return;
+                }
+
+                // If we couldn't reduce the SSAA level, just try it anyway and see what happens, there is nothing we can do at this point.
+            }
 
             targetTexture = GL.GenTexture();
-            GL.BindTexture(TextureTarget.Texture2DMultisample, targetTexture);
-            GL.TexImage2DMultisample(TextureTargetMultisample.Texture2DMultisample, MSAA_LEVEL, PixelInternalFormat.Rgb, width, height, true);
+            GL.BindTexture(TextureTarget.Texture2D, targetTexture);
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgb8, RenderWidth, RenderHeight, 0, PixelFormat.Rgb, PixelType.UnsignedByte, (IntPtr) 0);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int) TextureMagFilter.Linear);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int) TextureMinFilter.Linear);
 
             renderbufferID = GL.GenRenderbuffer();
             GL.BindRenderbuffer(RenderbufferTarget.Renderbuffer, renderbufferID);
-            GL.RenderbufferStorageMultisample(RenderbufferTarget.Renderbuffer, MSAA_LEVEL, RenderbufferStorage.DepthComponent, width, height);
+            GL.RenderbufferStorage(RenderbufferTarget.Renderbuffer, RenderbufferStorage.DepthComponent24, RenderWidth, RenderHeight);
 
             typeTexture = GL.GenTexture();
-            GL.BindTexture(TextureTarget.Texture2DMultisample, typeTexture);
-            GL.TexImage2DMultisample(TextureTargetMultisample.Texture2DMultisample, MSAA_LEVEL, PixelInternalFormat.R32i, width, height, true);
+            GL.BindTexture(TextureTarget.Texture2D, typeTexture);
+            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.R32i, RenderWidth, RenderHeight, 0, PixelFormat.RedInteger, PixelType.Int, (IntPtr) 0);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int) TextureMagFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int) TextureMinFilter.Nearest);
 
             framebufferID = GL.GenFramebuffer();
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, framebufferID);
-            GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2DMultisample, targetTexture, 0);
-            GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment1, TextureTarget.Texture2DMultisample, typeTexture, 0);
+            GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, targetTexture, 0);
+            GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment1, TextureTarget.Texture2D, typeTexture, 0);
             GL.FramebufferRenderbuffer(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, RenderbufferTarget.Renderbuffer, renderbufferID);
 
             outputTexture = GL.GenTexture();
@@ -65,26 +90,28 @@ namespace Replanetizer.Utils
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, outputFramebufferID);
             GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, outputTexture, 0);
             GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment1, TextureTarget.Texture2D, outputTypeTexture, 0);
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
         }
 
-        public FramebufferRenderer(int width, int height)
+        public FramebufferRenderer(int width, int height, Shader resolveShader)
         {
             this.width = width;
             this.height = height;
+            this.resolveShader = resolveShader;
 
             AllocateAllResources();
         }
 
         public void RenderToTexture(Action renderFunction)
         {
-            if (internalAllocatedMsaaLevel != MSAA_LEVEL)
+            if (internalAllocatedSsaaLevel != SSAA_LEVEL)
             {
                 DeleteAllResources();
                 AllocateAllResources();
             }
 
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, framebufferID);
-            GL.Viewport(0, 0, width, height);
+            GL.Viewport(0, 0, RenderWidth, RenderHeight);
 
             DrawBuffersEnum[] buffers = { DrawBuffersEnum.ColorAttachment0, DrawBuffersEnum.ColorAttachment1 };
             GL.DrawBuffers(2, buffers);
@@ -97,14 +124,25 @@ namespace Replanetizer.Utils
 
             renderFunction();
 
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, outputFramebufferID);
+            GL.DrawBuffer(DrawBufferMode.ColorAttachment0);
+            GL.Viewport(0, 0, width, height);
+            GL.Disable(EnableCap.DepthTest);
+            GL.Disable(EnableCap.ScissorTest);
+            GL.Disable(EnableCap.Blend);
+
+            GL.ActiveTexture(TextureUnit.Texture0);
+            GL.BindTexture(TextureTarget.Texture2D, targetTexture);
+            resolveShader.UseShader();
+            resolveShader.SetUniform1(UniformName.resolveTexture, 0);
+            resolveShader.SetUniform1(UniformName.resolveSsaaLevel, SSAA_LEVEL);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+
             GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, framebufferID);
             GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, outputFramebufferID);
-            GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
-            GL.DrawBuffer(DrawBufferMode.ColorAttachment0);
-            GL.BlitFramebuffer(0, 0, width, height, 0, 0, width, height, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Linear);
             GL.ReadBuffer(ReadBufferMode.ColorAttachment1);
             GL.DrawBuffer(DrawBufferMode.ColorAttachment1);
-            GL.BlitFramebuffer(0, 0, width, height, 0, 0, width, height, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
+            GL.BlitFramebuffer(0, 0, RenderWidth, RenderHeight, 0, 0, width, height, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Nearest);
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
 
             GL.DeleteVertexArray(vao);

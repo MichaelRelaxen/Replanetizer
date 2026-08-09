@@ -25,7 +25,10 @@ namespace Replanetizer
     public class Window : GameWindow
     {
         private static readonly NLog.Logger LOGGER = NLog.LogManager.GetCurrentClassLogger();
-        public string openGLString = "Unknown OpenGL Version";
+        public string glVendorString = "Unknown Vendor";
+        public string glRendererString = "Unknown Renderer";
+        public string glVersionString = "Unknown Version";
+        public string backendGraphicsString = "Unknown Backend";
 
         private ImGuiController? controller;
         private List<Frame> openFrames;
@@ -54,8 +57,11 @@ namespace Replanetizer
         {
             base.OnLoad();
 
-            openGLString = "OpenGL " + GL.GetString(StringName.Version);
-            Title = String.Format("Replanetizer ({0})", openGLString);
+            glVendorString = GL.GetString(StringName.Vendor);
+            glRendererString = GL.GetString(StringName.Renderer);
+            glVersionString = GL.GetString(StringName.Version);
+            backendGraphicsString = string.Format("OpenGL {0} | {1} | {2}", glVersionString, glVendorString, glRendererString);
+            Title = string.Format("Replanetizer (OpenGL {0})", glVersionString);
 
             controller = new ImGuiController(ClientSize.X, ClientSize.Y);
 

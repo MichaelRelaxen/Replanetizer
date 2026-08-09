@@ -82,24 +82,25 @@ namespace Replanetizer.Renderer
             GLUtil.CheckGlError("Clear");
 
             GLUtil.CreateTexture(TextureTarget.Texture2D, this.name, out textureID);
-            GL.TextureStorage2D(textureID, mipmapLevels, internalFormat, width, height);
+            GL.BindTexture(TextureTarget.Texture2D, textureID);
+            GL.TexImage2D(TextureTarget.Texture2D, 0, (PixelInternalFormat) internalFormat, width, height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, IntPtr.Zero);
             GLUtil.CheckGlError("Storage2d");
 
             byte[] imageBytes = new byte[image.Width * image.Height * 4];
             image.CopyPixelDataTo(imageBytes);
 
-            GL.TextureSubImage2D(textureID, 0, 0, 0, width, height, PixelFormat.Rgba, PixelType.UnsignedByte, imageBytes);
+            GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, width, height, PixelFormat.Rgba, PixelType.UnsignedByte, imageBytes);
             GLUtil.CheckGlError("SubImage");
 
-            if (generateMipmaps) GL.GenerateTextureMipmap(textureID);
+            if (generateMipmaps) GL.GenerateMipmap(GenerateMipmapTarget.Texture2D);
 
             SetWrapModes(TextureWrapMode.Repeat, TextureWrapMode.Repeat);
 
-            GL.TextureParameter(textureID, TextureParameterName.TextureMinFilter, (int) (generateMipmaps ? TextureMinFilter.Linear : TextureMinFilter.LinearMipmapLinear));
-            GL.TextureParameter(textureID, TextureParameterName.TextureMagFilter, (int) TextureMagFilter.Linear);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int) (generateMipmaps ? TextureMinFilter.LinearMipmapLinear : TextureMinFilter.Linear));
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int) TextureMagFilter.Linear);
             GLUtil.CheckGlError("Filtering");
 
-            GL.TextureParameter(textureID, TextureParameterName.TextureMaxLevel, mipmapLevels - 1);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, mipmapLevels - 1);
         }
 
         public GLTexture(string name, Image<L8> image)
@@ -113,22 +114,23 @@ namespace Replanetizer.Renderer
             GLUtil.CheckGlError("Clear");
 
             GLUtil.CreateTexture(TextureTarget.Texture2D, this.name, out textureID);
-            GL.TextureStorage2D(textureID, mipmapLevels, internalFormat, width, height);
+            GL.BindTexture(TextureTarget.Texture2D, textureID);
+            GL.TexImage2D(TextureTarget.Texture2D, 0, (PixelInternalFormat) internalFormat, width, height, 0, PixelFormat.Red, PixelType.UnsignedByte, IntPtr.Zero);
             GLUtil.CheckGlError("Storage2d");
 
             byte[] imageBytes = new byte[image.Width * image.Height];
             image.CopyPixelDataTo(imageBytes);
 
-            GL.TextureSubImage2D(textureID, 0, 0, 0, width, height, PixelFormat.Red, PixelType.UnsignedByte, imageBytes);
+            GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, width, height, PixelFormat.Red, PixelType.UnsignedByte, imageBytes);
             GLUtil.CheckGlError("SubImage");
 
             SetWrapModes(TextureWrapMode.Repeat, TextureWrapMode.Repeat);
 
-            GL.TextureParameter(textureID, TextureParameterName.TextureMinFilter, (int) TextureMinFilter.Nearest);
-            GL.TextureParameter(textureID, TextureParameterName.TextureMagFilter, (int) TextureMagFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int) TextureMinFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int) TextureMagFilter.Nearest);
             GLUtil.CheckGlError("Filtering");
 
-            GL.TextureParameter(textureID, TextureParameterName.TextureMaxLevel, mipmapLevels - 1);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, mipmapLevels - 1);
         }
 
         public GLTexture(string name, int width, int height, IntPtr data, bool generateMipmaps = false, bool srgb = false)
@@ -140,15 +142,16 @@ namespace Replanetizer.Renderer
             mipmapLevels = generateMipmaps == false ? 1 : (int) Math.Floor(Math.Log(Math.Max(this.width, this.height), 2));
 
             GLUtil.CreateTexture(TextureTarget.Texture2D, this.name, out textureID);
-            GL.TextureStorage2D(textureID, mipmapLevels, internalFormat, this.width, this.height);
+            GL.BindTexture(TextureTarget.Texture2D, textureID);
+            GL.TexImage2D(TextureTarget.Texture2D, 0, (PixelInternalFormat) internalFormat, this.width, this.height, 0, PixelFormat.Bgra, PixelType.UnsignedByte, IntPtr.Zero);
 
-            GL.TextureSubImage2D(textureID, 0, 0, 0, this.width, this.height, PixelFormat.Bgra, PixelType.UnsignedByte, data);
+            GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, this.width, this.height, PixelFormat.Bgra, PixelType.UnsignedByte, data);
 
-            if (generateMipmaps) GL.GenerateTextureMipmap(textureID);
+            if (generateMipmaps) GL.GenerateMipmap(GenerateMipmapTarget.Texture2D);
 
             SetWrapModes(TextureWrapMode.Repeat, TextureWrapMode.Repeat);
 
-            GL.TextureParameter(textureID, TextureParameterName.TextureMaxLevel, mipmapLevels - 1);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLevel, mipmapLevels - 1);
         }
 
         public GLTexture(Texture t)
@@ -237,40 +240,51 @@ namespace Replanetizer.Renderer
 
         public void SetMinFilter(TextureMinFilter filter)
         {
-            GL.TextureParameter(textureID, TextureParameterName.TextureMinFilter, (int) filter);
+            BindForEdit();
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int) filter);
         }
 
         public void SetMagFilter(TextureMagFilter filter)
         {
-            GL.TextureParameter(textureID, TextureParameterName.TextureMagFilter, (int) filter);
+            BindForEdit();
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int) filter);
         }
 
         public void SetAnisotropy(float level)
         {
             const TextureParameterName TEXTURE_MAX_ANISOTROPY = (TextureParameterName) 0x84FE;
-            GL.TextureParameter(textureID, TEXTURE_MAX_ANISOTROPY, GLUtil.Clamp(level, 1, MAX_ANISO));
+            BindForEdit();
+            GL.TexParameter(TextureTarget.Texture2D, TEXTURE_MAX_ANISOTROPY, GLUtil.Clamp(level, 1, MAX_ANISO));
         }
 
         public void SetLod(int @base, int min, int max)
         {
-            GL.TextureParameter(textureID, TextureParameterName.TextureLodBias, @base);
-            GL.TextureParameter(textureID, TextureParameterName.TextureMinLod, min);
-            GL.TextureParameter(textureID, TextureParameterName.TextureMaxLod, max);
+            BindForEdit();
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureLodBias, @base);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinLod, min);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMaxLod, max);
         }
 
         public void SetWrapModes(TextureWrapMode modeS, TextureWrapMode modeT)
         {
+            BindForEdit();
+
             if (wrapS != modeS)
             {
-                GL.TextureParameter(textureID, TextureParameterName.TextureWrapS, (int) modeS);
+                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int) modeS);
                 wrapS = modeS;
             }
 
             if (wrapT != modeT)
             {
-                GL.TextureParameter(textureID, TextureParameterName.TextureWrapT, (int) modeT);
+                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int) modeT);
                 wrapT = modeT;
             }
+        }
+
+        private void BindForEdit()
+        {
+            GL.BindTexture(TextureTarget.Texture2D, textureID);
         }
 
         public void Dispose()

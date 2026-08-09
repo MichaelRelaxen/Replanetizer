@@ -22,6 +22,7 @@ namespace Replanetizer.Renderer
         private static readonly Rgb24 CLEAR_COLOR = Color.FromRgb(0x9d, 0xab, 0xc7).ToPixel<Rgb24>();
         private readonly ShaderTable shaderTable;
         private Dictionary<Texture, GLTexture> textureIDs;
+        private readonly ModelGPUDataCache gpuDataCache;
 
         private LevelVariables? levelVariables;
         private List<Light>? lights;
@@ -51,6 +52,7 @@ namespace Replanetizer.Renderer
         {
             this.shaderTable = shaderTable;
             this.textureIDs = textureIDs;
+            this.gpuDataCache = new ModelGPUDataCache();
 
             this.toolRenderer = new ToolRenderer(shaderTable);
             this.dirLightsBuffer = new DirectionalLightsBuffer(shaderTable);
@@ -77,21 +79,21 @@ namespace Replanetizer.Renderer
 
             foreach (Moby mob in level.mobs)
             {
-                MeshRenderer mobRenderer = new MeshRenderer(shaderTable, textures, textureIDs);
+                MeshRenderer mobRenderer = new MeshRenderer(shaderTable, textures, textureIDs, textureIDs[level.textures[0]], null, gpuDataCache);
                 mobRenderer.Include(mob);
                 mobyRenderers.Add(mobRenderer);
             }
 
             foreach (Shrub shrub in level.shrubs)
             {
-                MeshRenderer shrubRenderer = new MeshRenderer(shaderTable, textures, textureIDs);
+                MeshRenderer shrubRenderer = new MeshRenderer(shaderTable, textures, textureIDs, textureIDs[level.textures[0]], null, gpuDataCache);
                 shrubRenderer.Include(shrub);
                 shrubRenderers.Add(shrubRenderer);
             }
 
             foreach (Tie tie in level.ties)
             {
-                MeshRenderer tieRenderer = new MeshRenderer(shaderTable, textures, textureIDs);
+                MeshRenderer tieRenderer = new MeshRenderer(shaderTable, textures, textureIDs, textureIDs[level.textures[0]], null, gpuDataCache);
                 tieRenderer.Include(tie);
                 tieRenderers.Add(tieRenderer);
             }
@@ -103,7 +105,7 @@ namespace Replanetizer.Renderer
                     List<MeshRenderer> terrainRenderer = new List<MeshRenderer>();
                     foreach (TerrainFragment fragment in terrainChunk.fragments)
                     {
-                        MeshRenderer fragmentRenderer = new MeshRenderer(shaderTable, textures, textureIDs);
+                        MeshRenderer fragmentRenderer = new MeshRenderer(shaderTable, textures, textureIDs, textureIDs[level.textures[0]], null, gpuDataCache);
                         fragmentRenderer.Include(fragment);
                         terrainRenderer.Add(fragmentRenderer);
                     }
@@ -115,7 +117,7 @@ namespace Replanetizer.Renderer
                 List<MeshRenderer> terrainRenderer = new List<MeshRenderer>();
                 foreach (TerrainFragment fragment in level.terrainEngine.fragments)
                 {
-                    MeshRenderer fragmentRenderer = new MeshRenderer(shaderTable, textures, textureIDs);
+                    MeshRenderer fragmentRenderer = new MeshRenderer(shaderTable, textures, textureIDs, textureIDs[level.textures[0]], null, gpuDataCache);
                     fragmentRenderer.Include(fragment);
                     terrainRenderer.Add(fragmentRenderer);
                 }
@@ -166,7 +168,7 @@ namespace Replanetizer.Renderer
                 throw new NullReferenceException();
             }
 
-            MeshRenderer shrubRenderer = new MeshRenderer(shaderTable, textures, textureIDs);
+            MeshRenderer shrubRenderer = new MeshRenderer(shaderTable, textures, textureIDs, textureIDs[textures[0]], null, gpuDataCache);
             shrubRenderer.Include(shrub);
             shrubRenderers.Add(shrubRenderer);
         }
@@ -178,7 +180,7 @@ namespace Replanetizer.Renderer
                 throw new NullReferenceException();
             }
 
-            MeshRenderer tieRenderer = new MeshRenderer(shaderTable, textures, textureIDs);
+            MeshRenderer tieRenderer = new MeshRenderer(shaderTable, textures, textureIDs, textureIDs[textures[0]], null, gpuDataCache);
             tieRenderer.Include(tie);
             tieRenderers.Add(tieRenderer);
         }
@@ -190,7 +192,7 @@ namespace Replanetizer.Renderer
                 throw new NullReferenceException();
             }
 
-            MeshRenderer mobRenderer = new MeshRenderer(shaderTable, textureOverride ?? textures, textureIDs);
+            MeshRenderer mobRenderer = new MeshRenderer(shaderTable, textureOverride ?? textures, textureIDs, textureIDs[textures[0]], null, gpuDataCache);
             mobRenderer.Include(mob);
             mobyRenderers.Add(mobRenderer);
         }
@@ -450,6 +452,7 @@ namespace Replanetizer.Renderer
 
             dirLightsBuffer.Dispose();
             toolRenderer?.Dispose();
+            gpuDataCache.Dispose();
         }
     }
 }

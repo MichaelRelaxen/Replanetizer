@@ -25,7 +25,7 @@ namespace LibReplanetizer.Parsers
         public GameplayParser(GameType game, string gameplayFilepath)
         {
             this.game = game;
-            fileStream = new ReplanetizerFileStream(gameplayFilepath, FileMode.Open, FileAccess.Read);
+            fileStream = ReplanetizerFileStream.Open(gameplayFilepath, FileMode.Open, FileAccess.Read);
             gameplayHeader = new GameplayHeader(game, fileStream);
         }
 

@@ -17,9 +17,14 @@ void main() {
     float edge_intensity = min(min(dist.x,dist.y),dist.z);
 
     if (edge_intensity > 0.01f) {
-        discard;
+        if (incolor.a == 0.0f) {
+            discard;
+        }
+
+        color = vec4(incolor.rgb, incolor.a);
+    } else {
+        color = vec4(incolor.rgb, 1.0f);
     }
 
-	color = vec4(incolor.rgb, 1.0f);
 	id = (levelObjectType << 24) | levelObjectNumber;
 }

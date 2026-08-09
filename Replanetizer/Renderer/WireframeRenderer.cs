@@ -37,8 +37,8 @@ namespace Replanetizer.Renderer
             }
         }
 
-        private static readonly Vector4 DEFAULT_COLOR = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
-        private static readonly Vector4 SELECTED_COLOR = new Vector4(1.0f, 0.0f, 1.0f, 1.0f);
+        private static readonly Vector4 DEFAULT_COLOR = new Vector4(1.0f, 1.0f, 1.0f, 0.0f);
+        private static readonly Vector4 SELECTED_COLOR = new Vector4(1.0f, 0.0f, 1.0f, 0.20f);
 
 
         private readonly ShaderTable shaderTable;
@@ -126,6 +126,9 @@ namespace Replanetizer.Renderer
 
         public override void Render(RendererPayload payload)
         {
+            GL.Enable(EnableCap.Blend);
+            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+
             foreach (WireframeCollection wireframe in wireframes)
             {
                 wireframe.Bind();
@@ -164,6 +167,8 @@ namespace Replanetizer.Renderer
                 }
 
             }
+
+            GL.Disable(EnableCap.Blend);
 
             GLUtil.CheckGlError("WireframeRenderer");
         }

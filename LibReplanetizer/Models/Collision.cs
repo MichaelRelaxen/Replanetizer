@@ -41,7 +41,6 @@ namespace LibReplanetizer.Models
         // Model
 
         public uint[] indBuff = { };
-        public uint[] colorBuff = { };
 
         // Standard Collision
 
@@ -282,6 +281,7 @@ namespace LibReplanetizer.Models
                     indices[t * 3 + 0] = dataBlock[tOff + 0x00];
                     indices[t * 3 + 1] = dataBlock[tOff + 0x01];
                     indices[t * 3 + 2] = dataBlock[tOff + 0x02];
+                    //type = dataBlock[tOff + 0x02]; ???
                 }
             }
 
@@ -348,6 +348,8 @@ namespace LibReplanetizer.Models
 
         public Collision(FileStream fs, int collisionPointer)
         {
+            vertexStride = 4;
+
             // RaC 1 title screen has no collision
             if (collisionPointer == 0)
                 return;
@@ -488,6 +490,11 @@ namespace LibReplanetizer.Models
             for (int i = 0; i < heroCells.Count; i++)
             {
                 heroCells[i].GetModelData(vertexList, indexList, ref totalVertexCount);
+            }
+
+            for (int i = 0; i < unkCells.Count; i++)
+            {
+                unkCells[i].GetModelData(vertexList, indexList, ref totalVertexCount);
             }
         }
 

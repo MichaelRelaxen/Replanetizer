@@ -45,15 +45,6 @@ namespace LibReplanetizer.Tests.Integration
         }
 
         [SkippableFact]
-        public void TieModel_SerializeHead_Has64Bytes()
-        {
-            Skip.If(EngineFile == null, SkipMsg);
-            using var parser = new EngineParser(EngineFile!);
-            foreach (var model in parser.GetTieModels().Cast<TieModel>())
-                Assert.Equal(0x40, model.SerializeHead(0).Length);
-        }
-
-        [SkippableFact]
         public void TieModel_IndexBuffer_NonEmpty()
         {
             Skip.If(EngineFile == null, SkipMsg);

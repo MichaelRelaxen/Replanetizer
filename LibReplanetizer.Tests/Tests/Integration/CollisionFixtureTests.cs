@@ -44,15 +44,6 @@ namespace LibReplanetizer.Tests.Integration
         }
 
         [SkippableFact]
-        public void Collision_ColorBuff_NonNull()
-        {
-            Skip.If(EngineFile == null, SkipMsg);
-            using var parser = new EngineParser(EngineFile!);
-            var collision = (Collision) parser.GetCollisionModel();
-            Assert.NotNull(collision.colorBuff);
-        }
-
-        [SkippableFact]
         public void Collision_VertexCount_ConsistentWithBuffer()
         {
             Skip.If(EngineFile == null, SkipMsg);

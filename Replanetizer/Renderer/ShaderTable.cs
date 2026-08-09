@@ -19,6 +19,7 @@ namespace Replanetizer.Renderer
         public Shader animationShader;
         public Shader wireframeShader;
         public Shader splineShader;
+        public Shader resolveShader;
 
         public ShaderTable(string directory)
         {
@@ -30,6 +31,7 @@ namespace Replanetizer.Renderer
             animationShader = Shader.GetShaderFromFiles("animationShader", Path.Join(directory, "animationvs.glsl"), Path.Join(directory, "animationfs.glsl"));
             wireframeShader = Shader.GetShaderFromFiles("wireframeShader", Path.Join(directory, "wireframevs.glsl"), Path.Join(directory, "wireframefs.glsl"), Path.Join(directory, "wireframegs.glsl"));
             splineShader = Shader.GetShaderFromFiles("splineShader", Path.Join(directory, "splinevs.glsl"), Path.Join(directory, "splinefs.glsl"), Path.Join(directory, "splinegs.glsl"));
+            resolveShader = Shader.GetShaderFromFiles("resolveShader", Path.Join(directory, "resolvevs.glsl"), Path.Join(directory, "resolvefs.glsl"));
         }
 
         public void Dispose()
@@ -42,6 +44,7 @@ namespace Replanetizer.Renderer
             animationShader?.Dispose();
             wireframeShader?.Dispose();
             splineShader?.Dispose();
+            resolveShader?.Dispose();
         }
     }
 }

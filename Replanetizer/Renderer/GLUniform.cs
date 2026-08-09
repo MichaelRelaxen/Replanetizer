@@ -62,6 +62,12 @@ namespace Replanetizer.Renderer
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Set1(int count, uint[] value)
+        {
+            GL.Uniform1(location, count, value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Set1(int value)
         {
             if (intValue != value)

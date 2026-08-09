@@ -27,6 +27,7 @@ out float fogBlend;
 
 // Values that stay constant for the whole mesh.
 uniform mat4 worldToView;
+uniform mat4 viewMatrix;
 uniform mat4 modelToWorld;
 uniform int levelObjectType;
 uniform int lightIndex;
@@ -34,15 +35,23 @@ uniform int useFog;
 uniform vec4 fogParams;
 uniform vec4 staticColor;
 uniform int useLighting;
+uniform int useMetalShading;
 
 void main() {
 	// Output position of the vertex, in clip space : MVP * position
-	gl_Position = worldToView * (modelToWorld * vec4(vertexPosition_modelspace, 1.0f));
+    vec3 worldPosition = (modelToWorld * vec4(vertexPosition_modelspace, 1.0f)).xyz;
+    gl_Position = worldToView * vec4(worldPosition, 1.0f);
 
 	vec3 normal = normalize((modelToWorld * vec4(vertexNormal, 0.0f)).xyz);
 
 	// UV of the vertex. No special space for this one.
-	UV = vertexUV;
+    if (useMetalShading != 0) {
+        vec3 viewNormal = normalize((viewMatrix * vec4(normal, 0.0f)).xyz);
+        UV = vec2(0.5f) + vec2(-0.5f,0.5f) * viewNormal.xy;
+    }
+    else {
+        UV = vertexUV;
+    }
 
     // Light color is precomputed on PS3 but we do it here instead.
     if (useLighting == 1) {

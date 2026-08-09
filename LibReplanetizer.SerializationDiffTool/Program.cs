@@ -22,6 +22,8 @@ namespace LibReplanetizer.SerializationDiffTool
 
         public static int Main(string[] args)
         {
+            ReplanetizerFileStream.EnableDebugFileStream();
+
             if (args.Length == 0 || args.Contains("--help") || args.Contains("-h"))
             {
                 PrintUsage();

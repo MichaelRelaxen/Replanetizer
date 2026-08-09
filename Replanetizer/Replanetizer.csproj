@@ -116,6 +116,12 @@
     <None Update="Shaders\fs.glsl">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Shaders\resolvefs.glsl">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Shaders\resolvevs.glsl">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Shaders\skyfs.glsl">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

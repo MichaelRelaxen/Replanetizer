@@ -86,8 +86,10 @@ namespace Replanetizer.Utils
 
             GLUtil.CreateVertexBuffer("ImGui", out vertexBuffer);
             GLUtil.CreateElementBuffer("ImGui", out indexBuffer);
-            GL.NamedBufferData(vertexBuffer, vertexBufferSize, IntPtr.Zero, BufferUsageHint.DynamicDraw);
-            GL.NamedBufferData(indexBuffer, indexBufferSize, IntPtr.Zero, BufferUsageHint.DynamicDraw);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffer);
+            GL.BufferData(BufferTarget.ArrayBuffer, vertexBufferSize, IntPtr.Zero, BufferUsageHint.DynamicDraw);
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffer);
+            GL.BufferData(BufferTarget.ElementArrayBuffer, indexBufferSize, IntPtr.Zero, BufferUsageHint.DynamicDraw);
 
             RecreateFontDeviceTexture();
 
@@ -123,20 +125,18 @@ void main()
 }";
             shader = new Shader("ImGui", vertexSource, fragmentSource);
 
-            GL.VertexArrayVertexBuffer(vertexArray, 0, vertexBuffer, IntPtr.Zero, Unsafe.SizeOf<ImDrawVert>());
-            GL.VertexArrayElementBuffer(vertexArray, indexBuffer);
+            GL.BindVertexArray(vertexArray);
+            GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffer);
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffer);
 
-            GL.EnableVertexArrayAttrib(vertexArray, 0);
-            GL.VertexArrayAttribBinding(vertexArray, 0, 0);
-            GL.VertexArrayAttribFormat(vertexArray, 0, 2, VertexAttribType.Float, false, 0);
+            GL.EnableVertexAttribArray(0);
+            GL.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, Unsafe.SizeOf<ImDrawVert>(), 0);
 
-            GL.EnableVertexArrayAttrib(vertexArray, 1);
-            GL.VertexArrayAttribBinding(vertexArray, 1, 0);
-            GL.VertexArrayAttribFormat(vertexArray, 1, 2, VertexAttribType.Float, false, 8);
+            GL.EnableVertexAttribArray(1);
+            GL.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, Unsafe.SizeOf<ImDrawVert>(), 8);
 
-            GL.EnableVertexArrayAttrib(vertexArray, 2);
-            GL.VertexArrayAttribBinding(vertexArray, 2, 0);
-            GL.VertexArrayAttribFormat(vertexArray, 2, 4, VertexAttribType.UnsignedByte, true, 16);
+            GL.EnableVertexAttribArray(2);
+            GL.VertexAttribPointer(2, 4, VertexAttribPointerType.UnsignedByte, true, Unsafe.SizeOf<ImDrawVert>(), 16);
 
             GLUtil.CheckGlError("End of ImGui setup");
         }
@@ -169,20 +169,18 @@ void main()
             {
                 frameBegun = false;
 
-                GL.VertexArrayVertexBuffer(vertexArray, 0, vertexBuffer, IntPtr.Zero, Unsafe.SizeOf<ImDrawVert>());
-                GL.VertexArrayElementBuffer(vertexArray, indexBuffer);
+                GL.BindVertexArray(vertexArray);
+                GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffer);
+                GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffer);
 
-                GL.EnableVertexArrayAttrib(vertexArray, 0);
-                GL.VertexArrayAttribBinding(vertexArray, 0, 0);
-                GL.VertexArrayAttribFormat(vertexArray, 0, 2, VertexAttribType.Float, false, 0);
+                GL.EnableVertexAttribArray(0);
+                GL.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, Unsafe.SizeOf<ImDrawVert>(), 0);
 
-                GL.EnableVertexArrayAttrib(vertexArray, 1);
-                GL.VertexArrayAttribBinding(vertexArray, 1, 0);
-                GL.VertexArrayAttribFormat(vertexArray, 1, 2, VertexAttribType.Float, false, 8);
+                GL.EnableVertexAttribArray(1);
+                GL.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, Unsafe.SizeOf<ImDrawVert>(), 8);
 
-                GL.EnableVertexArrayAttrib(vertexArray, 2);
-                GL.VertexArrayAttribBinding(vertexArray, 2, 0);
-                GL.VertexArrayAttribFormat(vertexArray, 2, 4, VertexAttribType.UnsignedByte, true, 16);
+                GL.EnableVertexAttribArray(2);
+                GL.VertexAttribPointer(2, 4, VertexAttribPointerType.UnsignedByte, true, Unsafe.SizeOf<ImDrawVert>(), 16);
 
                 ImGui.Render();
                 RenderImDrawData(ImGui.GetDrawData());
@@ -345,7 +343,8 @@ void main()
                 if (vertexSize > vertexBufferSize)
                 {
                     int newSize = (int) Math.Max(vertexBufferSize * 1.5f, vertexSize);
-                    GL.NamedBufferData(vertexBuffer, newSize, IntPtr.Zero, BufferUsageHint.DynamicDraw);
+                    GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffer);
+                    GL.BufferData(BufferTarget.ArrayBuffer, newSize, IntPtr.Zero, BufferUsageHint.DynamicDraw);
                     vertexBufferSize = newSize;
 
                     LOGGER.Info("Resized dear imgui vertex buffer to new size {0}", vertexBufferSize);
@@ -355,7 +354,8 @@ void main()
                 if (indexSize > indexBufferSize)
                 {
                     int newSize = (int) Math.Max(indexBufferSize * 1.5f, indexSize);
-                    GL.NamedBufferData(indexBuffer, newSize, IntPtr.Zero, BufferUsageHint.DynamicDraw);
+                    GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffer);
+                    GL.BufferData(BufferTarget.ElementArrayBuffer, newSize, IntPtr.Zero, BufferUsageHint.DynamicDraw);
                     indexBufferSize = newSize;
 
                     LOGGER.Info("Resized dear imgui index buffer to new size {0}", indexBufferSize);
@@ -394,10 +394,12 @@ void main()
             {
                 ImDrawListPtr cmdList = drawData.CmdLists[n];
 
-                GL.NamedBufferSubData(vertexBuffer, IntPtr.Zero, cmdList.VtxBuffer.Size * Unsafe.SizeOf<ImDrawVert>(), cmdList.VtxBuffer.Data);
+                GL.BindBuffer(BufferTarget.ArrayBuffer, vertexBuffer);
+                GL.BufferSubData(BufferTarget.ArrayBuffer, IntPtr.Zero, cmdList.VtxBuffer.Size * Unsafe.SizeOf<ImDrawVert>(), cmdList.VtxBuffer.Data);
                 GLUtil.CheckGlError($"Data Vert {n}");
 
-                GL.NamedBufferSubData(indexBuffer, IntPtr.Zero, cmdList.IdxBuffer.Size * sizeof(ushort), cmdList.IdxBuffer.Data);
+                GL.BindBuffer(BufferTarget.ElementArrayBuffer, indexBuffer);
+                GL.BufferSubData(BufferTarget.ElementArrayBuffer, IntPtr.Zero, cmdList.IdxBuffer.Size * sizeof(ushort), cmdList.IdxBuffer.Data);
                 GLUtil.CheckGlError($"Data Idx {n}");
 
                 int vtxOffset = 0;

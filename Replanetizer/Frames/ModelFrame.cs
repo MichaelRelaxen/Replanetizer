@@ -101,6 +101,7 @@ namespace Replanetizer.Frames
         private PropertyFrame propertyFrame;
         private bool firstFrame = true;
         private Vector2 startSize;
+        private readonly ModelGPUDataCache gpuDataCache = new ModelGPUDataCache();
 
         public ModelFrame(Window wnd, LevelFrame levelFrame, ShaderTable shaderIDTable, Model? model = null) : base(wnd, levelFrame)
         {
@@ -114,7 +115,8 @@ namespace Replanetizer.Frames
             UpdateZoom(0.0f);
             UpdateCamera();
 
-            meshRenderer = new MeshRenderer(shaderIDTable, levelFrame.level.textures, levelFrame.textureIds, levelFrame.level.playerAnimations);
+            meshRenderer = new MeshRenderer(shaderIDTable, levelFrame.level.textures, levelFrame.textureIds,
+                levelFrame.textureIds[levelFrame.level.textures[0]], levelFrame.level.playerAnimations, gpuDataCache);
             rendererPayload = new RendererPayload(camera);
 
             sortedMobyModels = new List<Model>(level.mobyModels);
@@ -379,7 +381,7 @@ namespace Replanetizer.Frames
                     //Setup openGL variables
                     GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit | ClearBufferMask.StencilBufferBit);
                     GL.Enable(EnableCap.DepthTest);
-                    GL.Viewport(0, 0, width, height);
+                    GL.Viewport(0, 0, renderer.RenderWidth, renderer.RenderHeight);
 
                     OnPaint();
                 });
@@ -902,7 +904,7 @@ namespace Replanetizer.Frames
             camera.aspect = ((float) width) / height;
 
             renderer?.Dispose();
-            renderer = new FramebufferRenderer(width, height);
+            renderer = new FramebufferRenderer(width, height, shaderTable.resolveShader);
         }
 
         private void ExportSelectedModel()
@@ -971,6 +973,7 @@ namespace Replanetizer.Frames
             base.Dispose();
             renderer?.Dispose();
             meshRenderer?.Dispose();
+            gpuDataCache.Dispose();
         }
     }
 }

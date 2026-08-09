@@ -90,14 +90,11 @@ namespace Replanetizer.Renderer
         {
             Matrix4 worldToView = payload.camera.GetWorldViewMatrix();
 
-            // Calculate camera position from the view matrix
-            var cameraPos = worldToView.ExtractTranslation();
-
             shaderTable.collisionShader.UseShader();
             shaderTable.collisionShader.SetUniformMatrix4(UniformName.worldToView, ref worldToView);
 
             // Send the camera position to the shader
-            shaderTable.collisionShader.SetUniform3(UniformName.cameraPosition, cameraPos);
+            shaderTable.collisionShader.SetUniform3(UniformName.cameraPosition, payload.camera.position);
 
             for (int i = 0; i < numCollisions; i++)
             {

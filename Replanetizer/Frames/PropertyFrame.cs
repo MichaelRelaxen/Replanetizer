@@ -107,13 +107,12 @@ namespace Replanetizer.Frames
                 string category =
                     prop.GetCustomAttribute<CategoryAttribute>()?.Category ?? "Unknowns";
 
-                string displayName =
-                    prop.GetCustomAttribute<DisplayNameAttribute>()?.DisplayName ?? prop.Name;
-
                 if (!properties.ContainsKey(category))
                     properties[category] = new Dictionary<string, PropertyInfo>();
 
-                properties[category][displayName] = prop;
+                // Keep the reflected property name as the identity. Display names are
+                // user-facing and are not guaranteed to be unique.
+                properties[category][prop.Name] = prop;
             }
         }
 
@@ -154,7 +153,9 @@ namespace Replanetizer.Frames
 
             foreach (var (categoryName, categoryItems) in properties)
             {
+                ImGui.PushID(categoryName);
                 RenderCategory(categoryName, categoryItems);
+                ImGui.PopID();
             }
 
             ImGui.PopID();
@@ -171,8 +172,14 @@ namespace Replanetizer.Frames
             }
         }
 
-        private void RenderCategoryItem(string propertyName, PropertyInfo propertyInfo)
+        private void RenderCategoryItem(string propertyIdentifier, PropertyInfo propertyInfo)
         {
+            // Every property gets its own scope. This is important for nested
+            // PropertyFrames and for properties with identical display names.
+            ImGui.PushID(propertyIdentifier);
+
+            string propertyName =
+                propertyInfo.GetCustomAttribute<DisplayNameAttribute>()?.DisplayName ?? propertyInfo.Name;
             object? val = propertyInfo.GetValue(selectedObject);
             Type? type = propertyInfo.GetSetMethod() == null ? null : propertyInfo.PropertyType;
             string? description = propertyInfo.GetCustomAttribute<DescriptionAttribute>()?.Description ?? null;
@@ -492,7 +499,7 @@ namespace Replanetizer.Frames
                                          */
                                         if ((col % 2) == 0 && ((index + 1) < array.Length))
                                         {
-                                            ushort u16val = (ushort)((element << 8) | Convert.ToByte(array.GetValue(index + 1)!));
+                                            ushort u16val = (ushort) ((element << 8) | Convert.ToByte(array.GetValue(index + 1)!));
                                             tooltipText += $"\nDecimal (16 bits): {u16val}";
                                             tooltipText += $"\nHexadecimal (16 bits): 0x" + u16val.ToString("X4");
                                         }
@@ -504,7 +511,7 @@ namespace Replanetizer.Frames
                                             byte n2 = Convert.ToByte(array.GetValue(index + 2)!);
                                             byte n3 = Convert.ToByte(array.GetValue(index + 3)!);
 
-                                            uint u32val = (uint)((element << 24) | (n1 << 16) | (n2 << 8) | n3);
+                                            uint u32val = (uint) ((element << 24) | (n1 << 16) | (n2 << 8) | n3);
                                             tooltipText += $"\nDecimal (32 bits): {u32val}";
                                             tooltipText += $"\nHexadecimal (32 bits): 0x" + u32val.ToString("X8");
 
@@ -673,6 +680,8 @@ namespace Replanetizer.Frames
                     ImGui.EndTooltip();
                 }
             }
+
+            ImGui.PopID();
         }
     }
 }

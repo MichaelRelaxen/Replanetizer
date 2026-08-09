@@ -63,8 +63,7 @@ namespace LibReplanetizer
     /// so the log stays compact even for streaming reads/writes.
     /// </para>
     /// <para>
-    /// All tracking logic is compiled out in Release builds (<c>#if DEBUG</c>), so there is
-    /// zero overhead outside of debug sessions.
+    /// Tracking is enabled whenever a caller explicitly opts into this stream type.
     /// </para>
     /// </summary>
     public class DebugFileStream : FileStream
@@ -148,7 +147,7 @@ namespace LibReplanetizer
             : base(path, mode, access)
         {
             _stackDepth = ReadStackDepth();
-            _trackReads  = access == FileAccess.Read  || access == FileAccess.ReadWrite;
+            _trackReads = access == FileAccess.Read || access == FileAccess.ReadWrite;
             _trackWrites = access == FileAccess.Write || access == FileAccess.ReadWrite;
         }
 
@@ -160,11 +159,9 @@ namespace LibReplanetizer
         /// Records that <paramref name="length"/> bytes were accessed at
         /// <paramref name="offset"/> in the file with the given <paramref name="type"/>.
         /// Adjacent entries that share both type and stack trace are merged.
-        /// Compiled out entirely in Release builds.
         /// </summary>
         private void RecordAccess(long offset, int length, AccessType type)
         {
-#if DEBUG
             if (length <= 0)
                 return;
 
@@ -226,7 +223,7 @@ namespace LibReplanetizer
 
             log.Insert(insertAt, new AccessEntry(offset, end, type, traceString));
 
-            tryMergeSuccessor:
+        tryMergeSuccessor:
             // Try to merge the entry at insertAt with its successor.
             int succIdx = insertAt + 1;
             if (succIdx < log.Count)
@@ -239,7 +236,6 @@ namespace LibReplanetizer
                     log.RemoveAt(succIdx);
                 }
             }
-#endif
         }
 
         // ------------------------------------------------------------------ //
@@ -287,7 +283,6 @@ namespace LibReplanetizer
         /// Writes one access log (reads or writes) to <paramref name="path"/> in a
         /// human-readable format, interleaving "NOT ACCESSED" entries for any gap in the
         /// file larger than <see cref="GAP_THRESHOLD"/> bytes.
-        /// Only meaningful in DEBUG builds.
         /// </summary>
         public void WriteLogToFile(string path, AccessType type, long fileLength)
         {
@@ -333,7 +328,6 @@ namespace LibReplanetizer
 
         protected override void Dispose(bool disposing)
         {
-#if DEBUG
             if (disposing)
             {
                 string? logDir = Environment.GetEnvironmentVariable(LOG_DIR_ENV_VAR);
@@ -354,7 +348,6 @@ namespace LibReplanetizer
                     }
                 }
             }
-#endif
             base.Dispose(disposing);
         }
     }
