@@ -6,7 +6,6 @@
 // Please see the LICENSE.md file for more details.
 
 using System;
-using Microsoft.VisualBasic.Logging;
 using OpenTK.Graphics.OpenGL;
 using Replanetizer.Renderer;
 
@@ -14,8 +13,6 @@ namespace Replanetizer.Utils
 {
     public class FramebufferRenderer : IDisposable
     {
-        private static readonly NLog.Logger LOGGER = NLog.LogManager.GetCurrentClassLogger();
-
         public static int SSAA_LEVEL_LOG = 1;
         public static int SSAA_LEVEL { get { return 1 << SSAA_LEVEL_LOG; } }
         private int internalAllocatedSsaaLevel;
