@@ -32,8 +32,10 @@ namespace Replanetizer.Renderer
         private MobyModel? mobyModelStandalone;
 
         private int loadedModelID = -1;
+        private MobyModel? loadedModel;
+        private bool loadedModelHasMeshData = false;
 
-        private bool emptyModel = false;
+        private bool emptyModel = true;
 
 
         private int light { get; set; }
@@ -107,6 +109,14 @@ namespace Replanetizer.Renderer
             gpuDataCache.Release(gpuData);
             gpuData = null;
             loadedModelID = -1;
+            loadedModel = null;
+            loadedModelHasMeshData = false;
+            emptyModel = true;
+        }
+
+        private static bool HasAnimationMeshData(MobyModel? model)
+        {
+            return model != null && model.GetIndices().Length > 0 && model.boneCount > 0;
         }
 
         public bool IsValid()
@@ -141,27 +151,22 @@ namespace Replanetizer.Renderer
 
             if (mobyModel == null)
             {
-                emptyModel = true;
                 return;
             }
 
-            if (mobyModel.GetIndices().Length == 0)
-            {
-                emptyModel = true;
-                return;
-            }
+            loadedModel = mobyModel;
+            loadedModelHasMeshData = HasAnimationMeshData(mobyModel);
 
-            if (mobyModel.boneCount == 0)
-            {
-                emptyModel = true;
+            if (!loadedModelHasMeshData)
                 return;
-            }
 
             // This is a camera object that only exist at runtime and blocks vision in interactive mode.
             // We simply don't draw it.
             if (loadedModelID == 0x3EF)
             {
                 loadedModelID = -1;
+                loadedModel = null;
+                loadedModelHasMeshData = false;
                 emptyModel = true;
                 mob = null;
                 return;
@@ -194,13 +199,15 @@ namespace Replanetizer.Renderer
                 modelID = mobyModelStandalone.id;
             }
 
-            if (modelID != -1)
+            MobyModel? currentModel = (MobyModel?) mob?.model ?? mobyModelStandalone;
+            bool currentModelHasMeshData = HasAnimationMeshData(currentModel);
+
+            if (loadedModelID != modelID
+                || loadedModel != currentModel
+                || loadedModelHasMeshData != currentModelHasMeshData)
             {
-                if (loadedModelID != modelID)
-                {
-                    previousFrame = null;
-                    GenerateBuffers();
-                }
+                previousFrame = null;
+                GenerateBuffers();
             }
         }
 

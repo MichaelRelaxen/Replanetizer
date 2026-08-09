@@ -33,6 +33,7 @@ namespace Replanetizer.Renderer
         private Model? modelStandalone;
 
         private int loadedModelID = -1;
+        private bool modelHasMeshData = false;
 
         private RenderedObjectType type { get; set; }
         private int objectID = 0;
@@ -123,6 +124,7 @@ namespace Replanetizer.Renderer
             gpuDataCache.Release(gpuData);
             gpuData = null;
             loadedModelID = -1;
+            modelHasMeshData = false;
             modelRender = null;
             renderPrepared = false;
         }
@@ -178,10 +180,13 @@ namespace Replanetizer.Renderer
             if (renderCameraMesh == false && loadedModelID == 0x3EF && modelObject != null)
             {
                 loadedModelID = -1;
+                modelHasMeshData = false;
                 modelObject = null;
                 modelRender = null;
                 return;
             }
+
+            modelHasMeshData = true;
 
             ModelGPULayout layout = type switch
             {
@@ -233,7 +238,10 @@ namespace Replanetizer.Renderer
                 modelToWorld = modelObject.modelMatrix;
                 objectID = modelObject.globalID;
 
-                if (modelRender != modelObject.model)
+                bool currentModelHasMeshData = modelObject.model != null && HasMeshData(modelObject.model);
+                if (modelRender != modelObject.model
+                    || loadedModelID != modelObject.modelID
+                    || modelHasMeshData != currentModelHasMeshData)
                 {
                     GenerateBuffers();
                 }
@@ -243,7 +251,10 @@ namespace Replanetizer.Renderer
                 modelToWorld = Matrix4.Identity;
                 objectID = 0;
 
-                if (loadedModelID != modelStandalone.id)
+                bool currentModelHasMeshData = HasMeshData(modelStandalone);
+                if (modelRender != modelStandalone
+                    || loadedModelID != modelStandalone.id
+                    || modelHasMeshData != currentModelHasMeshData)
                 {
                     GenerateBuffers();
                 }
@@ -437,6 +448,7 @@ namespace Replanetizer.Renderer
 
             renderPrepared = true;
             renderPerform = true;
+            renderPerformBillboardOnly = false;
 
             if (modelRender == null || !HasMeshData(modelRender))
             {
