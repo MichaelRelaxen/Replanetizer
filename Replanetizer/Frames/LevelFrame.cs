@@ -154,10 +154,11 @@ namespace Replanetizer.Frames
                                 switch (extension)
                                 {
                                     case ".rcc":
-                                        FileStream fs = File.Open(res, FileMode.Create);
-                                        byte[] collisionBytes = level.collisionEngine.Serialize();
-                                        fs.Write(collisionBytes, 0, collisionBytes.Length);
-                                        fs.Close();
+                                        using (FileStream fs = File.Open(res, FileMode.Create))
+                                        {
+                                            byte[] collisionBytes = level.collisionEngine.Serialize();
+                                            fs.Write(collisionBytes, 0, collisionBytes.Length);
+                                        }
                                         break;
                                     default:
                                     case ".obj":
@@ -208,9 +209,8 @@ namespace Replanetizer.Frames
                             var res = CrossFileDialog.OpenFile(filter: ".rcc");
                             if (res.Length > 0)
                             {
-                                FileStream fs = File.Open(res, FileMode.Open);
-                                level.collisionEngine = new Collision(fs, 0);
-                                fs.Close();
+                                using (FileStream fs = File.Open(res, FileMode.Open, FileAccess.Read))
+                                    level.collisionEngine = new Collision(fs, 0);
                             }
                             InvalidateView();
                         }
