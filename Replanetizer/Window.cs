@@ -261,6 +261,8 @@ namespace Replanetizer
             }
             openFrames.Clear();
 
+            controller?.Dispose();
+
             BillboardRenderer.CleanupStaticResources();
             GLTexture.CleanupStaticResources();
             base.OnUnload();

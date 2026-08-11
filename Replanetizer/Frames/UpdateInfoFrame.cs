@@ -50,6 +50,9 @@ namespace Replanetizer.Frames
                         response.EnsureSuccessStatusCode();
                         string content = await response.Content.ReadAsStringAsync();
 
+                        requestMessage.Dispose();
+                        response.Dispose();
+
                         JObject? data = (JObject?) Newtonsoft.Json.JsonConvert.DeserializeObject(content);
 
                         if (data != null)
