@@ -445,12 +445,15 @@ namespace Replanetizer.Renderer
             if (anim != null && frame != null)
             {
                 float frameSpeed = (anim.speed != 0.0f) ? anim.speed : frame.speed;
-                frameBlend += payload.deltaTime * frameSpeed * 60.0f;
 
                 // If frameSpeed is zero then no interpolation is used and thus always display exactly the current frame.
-                if (frameSpeed == 0.0f)
+                if (frameSpeed == 0.0f || float.IsNaN(frameSpeed) || float.IsInfinity(frameSpeed))
                 {
                     frameBlend = 1.0f;
+                }
+                else
+                {
+                    frameBlend += payload.deltaTime * frameSpeed * 60.0f;
                 }
             }
 
