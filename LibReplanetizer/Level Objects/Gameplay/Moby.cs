@@ -1249,11 +1249,11 @@ namespace LibReplanetizer.LevelObjects
                 animationBlend = ReadFloat(memory, offset + 0x54);
                 unk58 = ReadFloat(memory, offset + 0x58);
                 frameSpeed = ReadFloat(memory, offset + 0x5C);
-                pPreviousAnimationData = ReadUint(memory, offset + 0x68);
-                pCurrentAnimationData = ReadUint(memory, offset + 0x6C);
 
                 pAnimationLayers = ReadUint(memory, offset + 0x60);
                 pManipulators = ReadUint(memory, offset + 0x64);
+                pPreviousAnimationData = ReadUint(memory, offset + 0x68);
+                pCurrentAnimationData = ReadUint(memory, offset + 0x6C);
 
                 pUpdate = ReadUint(memory, offset + 0x74);
                 pVars = ReadUint(memory, offset + 0x78);
@@ -1316,6 +1316,9 @@ namespace LibReplanetizer.LevelObjects
                 animationBlend = ReadFloat(memory, offset + 0x44);
                 unk58 = ReadFloat(memory, offset + 0x48);
                 frameSpeed = ReadFloat(memory, offset + 0x4C);
+
+                pAnimationLayers = ReadUint(memory, offset + 0x50);
+                pManipulators = ReadUint(memory, offset + 0x54);
                 pPreviousAnimationData = ReadUint(memory, offset + 0x58);
                 pCurrentAnimationData = ReadUint(memory, offset + 0x5C);
 

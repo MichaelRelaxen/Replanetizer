@@ -78,7 +78,7 @@ namespace Replanetizer.MemoryHook
                     {
                         moby = 0x3015927B0,
                         camera = 0x30146E3C0,
-                        levelFrames = 0
+                        levelFrames = 0x30156B070
                     };
                     break;
                 case 3:
@@ -86,7 +86,7 @@ namespace Replanetizer.MemoryHook
                     {
                         moby = 0x300F22260,
                         camera = 0x300D6B400,
-                        levelFrames = 0
+                        levelFrames = 0x301A70B30
                     };
                     break;
                 default:
