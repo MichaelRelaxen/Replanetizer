@@ -68,14 +68,14 @@ void main() {
         alpha *= 1.0f - objectBlendDistance;
     }
 
-    if (useTransparency == 1) {
+    if (useTransparency != 0) {
         alpha *= textureColor.w;
     }
 
-    if (computeDitheringDiscard(alpha)) discard;
+    if (useMetalShading == 0 && computeDitheringDiscard(alpha)) discard;
 
 	color.xyz = 1.5f * textureColor.xyz * lightColor * 2.0f;
-	color.w = 1.0f;
+	color.w = (useMetalShading != 0) ? alpha : 1.0f;
 
 	color.xyz = (fogColor.xyz - color.xyz) * fogBlend + color.xyz;
 
