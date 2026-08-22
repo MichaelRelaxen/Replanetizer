@@ -18,7 +18,7 @@ namespace LibReplanetizer.Headers
         public GameType game = GameType.RaC1;
 
         public int mobyModelPointer;
-        public int renderDefPointer;            // TODO
+        public int mobyOcclusionPointer;
         public int unk1Pointer;               // TODO     xx
         public int unk2Pointer;               // TODO     xx
 
@@ -106,7 +106,7 @@ namespace LibReplanetizer.Headers
             byte[] engineHeadBlock = ReadBlock(engineFile, 0, RAC123_ENGINE_SIZE);
 
             mobyModelPointer = ReadInt(engineHeadBlock, 0x00);
-            renderDefPointer = ReadInt(engineHeadBlock, 0x04);
+            mobyOcclusionPointer = ReadInt(engineHeadBlock, 0x04);
             unk1Pointer = ReadInt(engineHeadBlock, 0x08);   // RC1 in-level ship missions (like Pokitaru or Drek's Fleet)
             unk2Pointer = ReadInt(engineHeadBlock, 0x0C);   // Spherical Planets (like Jamming Array)
 
@@ -125,7 +125,7 @@ namespace LibReplanetizer.Headers
             shrubCount = ReadInt(engineHeadBlock, 0x38);
             terrainPointer = ReadInt(engineHeadBlock, 0x3C);
 
-            precipitationMapPointer = ReadInt(engineHeadBlock, 0x40);   // Precipitation (like Batalia or Oozla)
+            precipitationMapPointer = ReadInt(engineHeadBlock, 0x40);
             unk4Pointer = ReadInt(engineHeadBlock, 0x44);
             soundConfigPointer = ReadInt(engineHeadBlock, 0x48);
             gadgetPointer = ReadInt(engineHeadBlock, 0x4C);
@@ -149,7 +149,7 @@ namespace LibReplanetizer.Headers
             byte[] engineHeadBlock = ReadBlock(engineFile, 0, DL_ENGINE_SIZE);
 
             mobyModelPointer = ReadInt(engineHeadBlock, 0x00);
-            renderDefPointer = ReadInt(engineHeadBlock, 0x04);
+            mobyOcclusionPointer = ReadInt(engineHeadBlock, 0x04);
             unk1Pointer = ReadInt(engineHeadBlock, 0x08);
             unk2Pointer = ReadInt(engineHeadBlock, 0x0C);
 
@@ -213,7 +213,7 @@ namespace LibReplanetizer.Headers
             byte[] bytes = new byte[RAC123_ENGINE_SIZE];
 
             WriteInt(bytes, 0x00, mobyModelPointer);
-            WriteInt(bytes, 0x04, renderDefPointer);
+            WriteInt(bytes, 0x04, mobyOcclusionPointer);
             WriteInt(bytes, 0x08, unk1Pointer);
             WriteInt(bytes, 0x0C, unk2Pointer);
 
@@ -262,7 +262,7 @@ namespace LibReplanetizer.Headers
             byte[] bytes = new byte[DL_ENGINE_SIZE];
 
             WriteInt(bytes, 0x00, mobyModelPointer);
-            WriteInt(bytes, 0x04, renderDefPointer);
+            WriteInt(bytes, 0x04, mobyOcclusionPointer);
             WriteInt(bytes, 0x08, unk1Pointer);
             WriteInt(bytes, 0x0C, unk2Pointer);
 

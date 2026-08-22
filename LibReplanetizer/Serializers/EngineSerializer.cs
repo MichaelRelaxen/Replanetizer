@@ -53,7 +53,7 @@ namespace LibReplanetizer.Serializers
                 uiElementPointer = SeekWrite(fs, WriteUiElements(level.uiElements, (int) fs.Position)),
                 skyboxPointer = level.skybox.WriteBytes(fs),
                 terrainPointer = WriteTfrags(fs, level.terrainEngine, level.game),
-                renderDefPointer = SeekWrite(fs, level.renderDefBytes),
+                mobyOcclusionPointer = WriteMobyOcclusion(fs, level.mobyOcclusion),
                 unk1Pointer = SeekWrite(fs, level.unk1),
                 unk2Pointer = SeekWrite(fs, level.unk2),
                 precipitationMapPointer = SeekWrite(fs, level.precipitationMap?.Serialize()),
@@ -97,7 +97,7 @@ namespace LibReplanetizer.Serializers
                 game = level.game,
                 uiElementPointer = SeekWrite(fs, WriteUiElements(level.uiElements, (int) fs.Position)),
                 terrainPointer = WriteTfrags(fs, level.terrainEngine, level.game),
-                renderDefPointer = SeekWrite(fs, level.renderDefBytes),
+                mobyOcclusionPointer = WriteMobyOcclusion(fs, level.mobyOcclusion),
                 unk1Pointer = SeekWrite(fs, level.unk1),
                 unk2Pointer = SeekWrite(fs, level.unk2),
                 precipitationMapPointer = SeekWrite(fs, level.precipitationMap?.Serialize()),
@@ -146,7 +146,7 @@ namespace LibReplanetizer.Serializers
                 soundConfigPointer = SeekWrite(fs, level.soundConfigBytes),
                 unk9Pointer = SeekWrite(fs, level.unk9),
                 terrainPointer = WriteTfrags(fs, level.terrainEngine, level.game),
-                renderDefPointer = SeekWrite(fs, level.renderDefBytes),
+                mobyOcclusionPointer = WriteMobyOcclusion(fs, level.mobyOcclusion),
                 collisionPointer = SeekWrite(fs, level.collisionEngine.Serialize()),
                 shrubModelPointer = SeekWrite(fs, WriteShrubModels(level.shrubModels, (int) fs.Position)),
                 shrubPointer = SeekWrite(fs, WriteShrubs(level.shrubs)),
@@ -414,6 +414,14 @@ namespace LibReplanetizer.Serializers
             WriteBytesAtOffset(fs, headerBytes, headerOffset);
 
             return headerOffset;
+        }
+
+        private int WriteMobyOcclusion(FileStream fs, MobyOcclusion? mobyOcclusion)
+        {
+            if (mobyOcclusion == null)
+                return 0;
+
+            return mobyOcclusion.WriteBytes(fs);
         }
     }
 }

@@ -125,31 +125,12 @@ namespace LibReplanetizer.Parsers
             return GetCollisionModel(engineHead.collisionPointer);
         }
 
-        public byte[] GetRenderDefBytes()
+        public MobyOcclusion? GetMobyOcclusion()
         {
-            if (engineHead.renderDefPointer == 0) { return []; }
+            if (engineHead.mobyOcclusionPointer == 0)
+                return null;
 
-            if (engineHead.game == GameType.RaC1 || engineHead.game == GameType.RaC2 || engineHead.game == GameType.RaC3)
-            {
-                int endPointer = engineHead.collisionPointer;
-
-                if (engineHead.precipitationMapPointer > 0)
-                    endPointer = engineHead.precipitationMapPointer;
-
-                if (engineHead.unk2Pointer > 0)
-                    endPointer = engineHead.unk2Pointer;
-
-                if (engineHead.unk1Pointer > 0)
-                    endPointer = engineHead.unk1Pointer;
-
-                Utilities.DebugAssert(endPointer != 0, "No valid endPointer was found!");
-
-                return ReadArbBytes(engineHead.renderDefPointer, endPointer - engineHead.renderDefPointer);
-            }
-            else
-            {
-                return ReadArbBytes(engineHead.renderDefPointer, engineHead.collisionPointer - engineHead.renderDefPointer);
-            }
+            return new MobyOcclusion(fileStream, engineHead.mobyOcclusionPointer);
         }
 
         public byte[] GetBillboardBytes()

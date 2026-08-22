@@ -43,7 +43,8 @@ namespace LibReplanetizer
         public List<Texture> gadgetTextures;
         public SkyboxModel skybox;
 
-        public byte[] renderDefBytes;
+        public MobyOcclusion? mobyOcclusion;
+
         public byte[] billboardBytes;
         public byte[] soundConfigBytes;
 
@@ -142,7 +143,6 @@ namespace LibReplanetizer
                 game = engineParser.GetGameType();
 
                 //REMOVE THESE ASAP!!!!!111
-                renderDefBytes = engineParser.GetRenderDefBytes();
                 billboardBytes = engineParser.GetBillboardBytes();
                 soundConfigBytes = engineParser.GetSoundConfigBytes();
 
@@ -202,6 +202,8 @@ namespace LibReplanetizer
                 lightConfig = engineParser.GetLightConfig();
                 precipitationMap = engineParser.GetPrecipitationMap();
                 textureConfigMenus = engineParser.GetTextureConfigMenu();
+
+                mobyOcclusion = engineParser.GetMobyOcclusion();
 
                 collisionEngine = engineParser.GetCollisionModel();
 
