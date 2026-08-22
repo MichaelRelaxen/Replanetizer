@@ -4,7 +4,6 @@ using System.Runtime.InteropServices;
 
 namespace Replanetizer.MemoryHook
 {
-#if _WINDOWS
     internal sealed class WindowsProcessMemory : IProcessMemory
     {
         private const int PROCESS_WM_READ = 0x38;
@@ -93,5 +92,4 @@ namespace Replanetizer.MemoryHook
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool CloseHandle(IntPtr handle);
     }
-#endif
 }
