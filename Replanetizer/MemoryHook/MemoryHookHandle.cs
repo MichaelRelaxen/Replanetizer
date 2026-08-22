@@ -60,7 +60,7 @@ namespace Replanetizer.MemoryHook
         public bool hookWorking { get; private set; } = false;
         private string errorMessage = "";
 
-        public MemoryHookHandle(Level level)
+        public MemoryHookHandle(Level level, bool useWatchPoint)
         {
             GAME = level.game;
             switch (level.game.num)
@@ -102,7 +102,7 @@ namespace Replanetizer.MemoryHook
                 errorMessage = PROCESS_MEMORY.ErrorMessage;
 
 #if _WINDOWS
-                if (level.game.num == 1 && PROCESS_MEMORY is WindowsProcessMemory windowsProcessMemory)
+                if (useWatchPoint && ADDRESSES?.levelFrames != 0 && PROCESS_MEMORY is WindowsProcessMemory windowsProcessMemory)
                 {
                     IFrameWatchpoint frameWatchpoint = new WindowsFrameWatchpoint(
                         windowsProcessMemory.ProcessId,

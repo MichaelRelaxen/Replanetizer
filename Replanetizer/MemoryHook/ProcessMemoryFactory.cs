@@ -8,11 +8,7 @@ namespace Replanetizer.MemoryHook
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-#if _WINDOWS
                 return new WindowsProcessMemory();
-#else
-                return new UnsupportedProcessMemory("Memory hooks are not available in this build.");
-#endif
             }
 
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))

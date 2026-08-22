@@ -1218,16 +1218,14 @@ namespace Replanetizer.Frames
             invalidate = true;
         }
 
-        public bool StartMemoryHook(ref string message)
+        public MemoryHookHandle StartMemoryHook(bool useBreakpoints)
         {
             hook?.Dispose();
-            hook = new MemoryHook.MemoryHookHandle(level);
-
-            message = hook.GetLastErrorMessage();
+            hook = new MemoryHookHandle(level, useBreakpoints);
 
             interactiveSession = hook.hookWorking;
 
-            return hook.hookWorking;
+            return hook;
         }
 
         public bool HasValidHook()

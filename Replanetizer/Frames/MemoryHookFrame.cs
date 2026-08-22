@@ -8,6 +8,7 @@
 using System;
 using System.Numerics;
 using ImGuiNET;
+using Replanetizer.MemoryHook;
 
 namespace Replanetizer.Frames
 {
@@ -18,6 +19,8 @@ namespace Replanetizer.Frames
         private string lastReturnMessage = "";
         private bool attempted = false;
         private bool success = false;
+        private bool useBreakpoints = false;
+        private MemoryHookHandle? hookHandle = null;
         private static readonly Vector4 SUCCESS_COLOR = new Vector4(0.0f, 1.0f, 0.0f, 1.0f);
         private static readonly Vector4 FAILURE_COLOR = new Vector4(1.0f, 0.0f, 0.0f, 1.0f);
         private static readonly Vector4 WARNING_COLOR = new Vector4(1.0f, 1.0f, 0.0f, 1.0f);
@@ -59,31 +62,44 @@ Once the memory hook is engaged you will no longer be able to save the level in 
             ImGui.Text(informationText);
             ImGui.TextColored(WARNING_COLOR, warningText);
 
-            bool attemptSucceeded = false;
+            bool disableControls = hookHandle != null;
 
-            if (success)
+            if (disableControls)
             {
                 ImGui.BeginDisabled();
             }
+
+#if _WINDOWS
+            ImGui.Checkbox("Use breakpoints (Experimental)", ref useBreakpoints);
+            ImGui.SameLine();
+
+            ImGui.TextDisabled("(?)");
+            if (ImGui.IsItemHovered())
+            {
+                if (ImGui.BeginTooltip())
+                {
+                    ImGui.PushTextWrapPos(ImGui.GetFontSize() * 40.0f);
+                    ImGui.TextUnformatted("Improves hook timing which results in a more stable and accurate synchronization between Replanetizer and the game. Might result in unforeseen issues as Replanetizer takes control over RPCS3.");
+                    ImGui.PopTextWrapPos();
+                }
+                ImGui.EndTooltip();
+            }
+#endif
             if (ImGui.Button("Activate Hook"))
             {
-                attemptSucceeded = levelFrame.StartMemoryHook(ref lastReturnMessage);
-                attempted = true;
+                hookHandle = levelFrame.StartMemoryHook(useBreakpoints);
             }
-            if (success)
+
+            if (disableControls)
             {
                 ImGui.EndDisabled();
             }
 
-            if (attemptSucceeded)
+            if (hookHandle != null)
             {
-                success = attemptSucceeded;
-            }
-
-            if (attempted)
-            {
+                ImGui.Text("Hook Status:");
                 ImGui.SameLine();
-                ImGui.TextColored((success) ? SUCCESS_COLOR : FAILURE_COLOR, lastReturnMessage);
+                ImGui.TextColored(hookHandle.hookWorking ? SUCCESS_COLOR : FAILURE_COLOR, hookHandle.GetLastErrorMessage());
             }
         }
     }
