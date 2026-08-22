@@ -13,6 +13,7 @@ using LibReplanetizer.LevelObjects;
 using LibReplanetizer.Models;
 using OpenTK.Mathematics;
 using Replanetizer.Frames;
+using Replanetizer.Renderer;
 using Replanetizer.Utils;
 using static LibReplanetizer.DataFunctions;
 
@@ -95,6 +96,13 @@ namespace Replanetizer.MemoryHook
                     return;
             }
 
+            if (IsX64() == false)
+            {
+                hookWorking = false;
+                errorMessage = "Memory hooks are only supported on 64 bit machines.";
+                return;
+            }
+
             PROCESS_MEMORY = ProcessMemoryFactory.Create();
             if (PROCESS_MEMORY.IsAvailable)
             {
@@ -141,53 +149,52 @@ namespace Replanetizer.MemoryHook
             return errorMessage;
         }
 
-        public void UpdateCamera(Camera camera)
+        private void UpdateMobys(MemorySnapshot snapshot, Level level, LevelRenderer renderer)
         {
-            if (!hookWorking) return;
             if (ADDRESSES == null) return;
-            if (ADDRESSES.camera == 0) return;
-            if (!TryAcquireCurrentSnapshot(out MemorySnapshot snapshot)) return;
-            try
+            if (ADDRESSES.moby == 0) return;
+
+            int numMobs = snapshot.mobyCount;
+            while (level.mobs.Count < numMobs)
             {
-                camera.position = snapshot.camera.position;
-                camera.rotation = snapshot.camera.rotation;
+                Moby mob = new Moby(level.game);
+                level.mobs.Add(mob);
+                renderer.Include(mob);
             }
-            finally
+
+            if (numMobs < level.mobs.Count)
             {
-                ReleaseSnapshot(snapshot);
+                for (int i = numMobs; i < level.mobs.Count; i++)
+                {
+                    level.mobs[i].SetDead();
+                }
+            }
+
+            for (int i = 0; i < numMobs; i++)
+            {
+                level.mobs[i].ApplyMemory(snapshot.mobyMemory[i], level.mobyModels);
             }
         }
 
-        public void UpdateMobys(List<Moby> levelMobs, List<Model> models, LevelFrame frame, GameType game)
+        private void UpdateCamera(MemorySnapshot snapshot, Camera? camera)
+        {
+            if (ADDRESSES == null) return;
+            if (ADDRESSES.camera == 0) return;
+            if (camera == null) return;
+
+            camera.position = snapshot.camera.position;
+            camera.rotation = snapshot.camera.rotation;
+        }
+
+        public void UpdateLevelObjects(Level level, LevelRenderer renderer, Camera? camera)
         {
             if (!hookWorking) return;
-            if (ADDRESSES == null) return;
-            if (ADDRESSES.moby == 0) return;
-            if (!IsX64()) return;
 
             if (!TryAcquireCurrentSnapshot(out MemorySnapshot snapshot)) return;
             try
             {
-                int numMobs = snapshot.mobyCount;
-                while (levelMobs.Count < numMobs)
-                {
-                    Moby mob = new Moby(game);
-                    levelMobs.Add(mob);
-                    frame.levelRenderer?.Include(mob);
-                }
-
-                if (numMobs < levelMobs.Count)
-                {
-                    for (int i = numMobs; i < levelMobs.Count; i++)
-                    {
-                        levelMobs[i].SetDead();
-                    }
-                }
-
-                for (int i = 0; i < numMobs; i++)
-                {
-                    levelMobs[i].ApplyMemory(snapshot.mobyMemory[i], models);
-                }
+                UpdateMobys(snapshot, level, renderer);
+                UpdateCamera(snapshot, camera);
             }
             finally
             {

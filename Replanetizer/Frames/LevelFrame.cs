@@ -979,13 +979,9 @@ namespace Replanetizer.Frames
         {
             rendererPayload.deltaTime = deltaTime;
 
-            if (interactiveSession && hookLiveUpdate && hook != null)
+            if (interactiveSession && hookLiveUpdate && hook != null && levelRenderer != null)
             {
-                hook.UpdateMobys(level.mobs, level.mobyModels, this, level.game);
-                if (hookUpdateCamera)
-                {
-                    hook.UpdateCamera(camera);
-                }
+                hook.UpdateLevelObjects(level, levelRenderer, hookUpdateCamera ? camera : null);
                 InvalidateView();
             }
 
