@@ -302,10 +302,10 @@ namespace LibReplanetizer.Models.Animations
             byte[] rotationBytes = new byte[rotations.Count * 0x08];
             for (int i = 0; i < rotations.Count; i++)
             {
-                WriteShort(rotationBytes, i * 8 + 0x00, (short) (rotations[i].rotation.X * 32767.0f));
-                WriteShort(rotationBytes, i * 8 + 0x02, (short) (rotations[i].rotation.Y * 32767.0f));
-                WriteShort(rotationBytes, i * 8 + 0x04, (short) (rotations[i].rotation.Z * 32767.0f));
-                WriteShort(rotationBytes, i * 8 + 0x06, (short) (-rotations[i].rotation.W * 32767.0f));
+                WriteShort(rotationBytes, i * 8 + 0x00, (short) (rotations[i].rotation.X * 32768.0f));
+                WriteShort(rotationBytes, i * 8 + 0x02, (short) (rotations[i].rotation.Y * 32768.0f));
+                WriteShort(rotationBytes, i * 8 + 0x04, (short) (rotations[i].rotation.Z * 32768.0f));
+                WriteShort(rotationBytes, i * 8 + 0x06, (short) (-rotations[i].rotation.W * 32768.0f));
             }
 
             byte[] sec0Bytes = new byte[scalings.Count * 0x08];
