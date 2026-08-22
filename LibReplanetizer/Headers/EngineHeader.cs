@@ -37,7 +37,7 @@ namespace LibReplanetizer.Headers
         public int shrubCount;
         public int terrainPointer;
 
-        public int unk3Pointer;               // TODO     xx
+        public int precipitationMapPointer;
         public int unk4Pointer;               // TODO     xx
         public int soundConfigPointer;          // TODO
         public int gadgetPointer;
@@ -125,7 +125,7 @@ namespace LibReplanetizer.Headers
             shrubCount = ReadInt(engineHeadBlock, 0x38);
             terrainPointer = ReadInt(engineHeadBlock, 0x3C);
 
-            unk3Pointer = ReadInt(engineHeadBlock, 0x40);   // Precipitation (like Batalia or Oozla)
+            precipitationMapPointer = ReadInt(engineHeadBlock, 0x40);   // Precipitation (like Batalia or Oozla)
             unk4Pointer = ReadInt(engineHeadBlock, 0x44);
             soundConfigPointer = ReadInt(engineHeadBlock, 0x48);
             gadgetPointer = ReadInt(engineHeadBlock, 0x4C);
@@ -153,7 +153,7 @@ namespace LibReplanetizer.Headers
             unk1Pointer = ReadInt(engineHeadBlock, 0x08);
             unk2Pointer = ReadInt(engineHeadBlock, 0x0C);
 
-            unk3Pointer = ReadInt(engineHeadBlock, 0x10);
+            precipitationMapPointer = ReadInt(engineHeadBlock, 0x10);
             skyboxPointer = ReadInt(engineHeadBlock, 0x14);
             collisionPointer = ReadInt(engineHeadBlock, 0x18);
             playerAnimationPointer = ReadInt(engineHeadBlock, 0x1C);
@@ -232,7 +232,7 @@ namespace LibReplanetizer.Headers
             WriteInt(bytes, 0x38, shrubCount);
             WriteInt(bytes, 0x3C, terrainPointer);
 
-            WriteInt(bytes, 0x40, unk3Pointer);
+            WriteInt(bytes, 0x40, precipitationMapPointer);
             WriteInt(bytes, 0x44, unk4Pointer);
             WriteInt(bytes, 0x48, soundConfigPointer);
             WriteInt(bytes, 0x4C, gadgetPointer);
@@ -266,7 +266,7 @@ namespace LibReplanetizer.Headers
             WriteInt(bytes, 0x08, unk1Pointer);
             WriteInt(bytes, 0x0C, unk2Pointer);
 
-            WriteInt(bytes, 0x10, unk3Pointer);
+            WriteInt(bytes, 0x10, precipitationMapPointer);
             WriteInt(bytes, 0x14, skyboxPointer);
             WriteInt(bytes, 0x18, collisionPointer);
             WriteInt(bytes, 0x1C, playerAnimationPointer);

@@ -107,6 +107,14 @@ namespace LibReplanetizer.Parsers
             return GetLightConfig(engineHead.lightConfigPointer);
         }
 
+        public PrecipitationMap? GetPrecipitationMap()
+        {
+            if (engineHead.precipitationMapPointer == 0)
+                return null;
+
+            return new PrecipitationMap(fileStream, engineHead.precipitationMapPointer);
+        }
+
         public List<int> GetTextureConfigMenu()
         {
             return GetTextureConfigMenu(engineHead.textureConfigMenuPointer, engineHead.textureConfigMenuCount);
@@ -125,8 +133,8 @@ namespace LibReplanetizer.Parsers
             {
                 int endPointer = engineHead.collisionPointer;
 
-                if (engineHead.unk3Pointer > 0)
-                    endPointer = engineHead.unk3Pointer;
+                if (engineHead.precipitationMapPointer > 0)
+                    endPointer = engineHead.precipitationMapPointer;
 
                 if (engineHead.unk2Pointer > 0)
                     endPointer = engineHead.unk2Pointer;
@@ -187,8 +195,8 @@ namespace LibReplanetizer.Parsers
             {
                 int endPointer = engineHead.collisionPointer;
 
-                if (engineHead.unk3Pointer > 0)
-                    endPointer = engineHead.unk3Pointer;
+                if (engineHead.precipitationMapPointer > 0)
+                    endPointer = engineHead.precipitationMapPointer;
 
                 if (engineHead.unk2Pointer > 0)
                     endPointer = engineHead.unk2Pointer;
@@ -218,19 +226,6 @@ namespace LibReplanetizer.Parsers
             }
         }
 
-        public byte[] GetUnk3Bytes()
-        {
-            if (engineHead.unk3Pointer == 0) { return []; }
-
-            if (engineHead.game == GameType.RaC1 || engineHead.game == GameType.RaC2 || engineHead.game == GameType.RaC3)
-            {
-                return ReadBlock(fileStream, engineHead.unk3Pointer, engineHead.collisionPointer - engineHead.unk3Pointer);
-            }
-            else
-            {
-                return ReadBlock(fileStream, engineHead.unk3Pointer, engineHead.texturePointer - engineHead.unk3Pointer);
-            }
-        }
 
         public byte[] GetUnk4Bytes()
         {

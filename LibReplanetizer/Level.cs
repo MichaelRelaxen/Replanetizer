@@ -78,7 +78,6 @@ namespace LibReplanetizer
 
         public byte[] unk1;
         public byte[] unk2;
-        public byte[] unk3;
         public byte[] unk4;
         public byte[] unk5;
         public byte[] unk6;
@@ -89,6 +88,7 @@ namespace LibReplanetizer
         public byte[] unk17;
 
         public LightConfig lightConfig;
+        public PrecipitationMap? precipitationMap;
 
         public List<PvarScratchPad> pvarScratchPads;
         public List<PvarRewire> pvarRewires;
@@ -200,13 +200,13 @@ namespace LibReplanetizer
                 LOGGER.Debug("Added {0} ui elements", uiElements.Count);
 
                 lightConfig = engineParser.GetLightConfig();
+                precipitationMap = engineParser.GetPrecipitationMap();
                 textureConfigMenus = engineParser.GetTextureConfigMenu();
 
                 collisionEngine = engineParser.GetCollisionModel();
 
                 unk1 = engineParser.GetUnk1Bytes();
                 unk2 = engineParser.GetUnk2Bytes();
-                unk3 = engineParser.GetUnk3Bytes();
                 unk4 = engineParser.GetUnk4Bytes();
                 unk5 = engineParser.GetUnk5Bytes();
                 unk8 = engineParser.GetUnk8Bytes();
