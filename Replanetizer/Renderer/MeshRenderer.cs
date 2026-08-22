@@ -505,8 +505,12 @@ namespace Replanetizer.Renderer
                 GL.BindVertexArray(modelGPUData.metalVao);
                 shaderTable.meshShader.SetUniform1(UniformName.useMetalShading, 1);
 
+                GL.Enable(EnableCap.Blend);
                 GL.Enable(EnableCap.PolygonOffsetFill);
                 GL.PolygonOffset(-1.0f, -1.0f);
+                GL.DepthMask(false);
+                GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.One);
+                GL.BlendEquation(BlendEquationMode.FuncAdd);
 
                 foreach (TextureConfig conf in metalModel.metalTextureConfig)
                 {
@@ -518,7 +522,10 @@ namespace Replanetizer.Renderer
                     GL.DrawElements(PrimitiveType.Triangles, conf.size, DrawElementsType.UnsignedShort, (conf.start - model.faceCount * 3) * sizeof(ushort));
                 }
 
+                GL.Disable(EnableCap.Blend);
                 GL.Disable(EnableCap.PolygonOffsetFill);
+                GL.DepthMask(true);
+                GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
             }
 
             if (selected)

@@ -47,14 +47,14 @@ void main() {
 	// UV of the vertex. No special space for this one.
     if (useMetalShading != 0) {
         vec3 viewNormal = normalize((viewMatrix * vec4(normal, 0.0f)).xyz);
-        UV = vec2(0.5f) + vec2(-0.5f,0.5f) * viewNormal.xy;
+        UV = vec2(0.5f) + vec2(0.5f) * viewNormal.xy;
     }
     else {
         UV = vertexUV;
     }
 
     // Light color is precomputed on PS3 but we do it here instead.
-    if (useLighting == 1) {
+    if (useLighting != 0) {
         vec3 directionalLight = vec3(0.0f);
         if (levelObjectType >= 1 && levelObjectType <= 4) {
             int index = lightIndex;
