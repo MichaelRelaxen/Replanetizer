@@ -77,7 +77,7 @@ namespace Replanetizer.Frames
         private bool orbitGestureConsumed;
         private bool zoomGestureActive;
         private bool zoomGestureConsumed;
-        private const float ZOOM_DRAG_SPEED = 0.1f;
+        private const float ZOOM_DRAG_SPEED = 0.01f;
         public readonly Keymap KEYMAP;
 
         public bool initialized, invalidate;

@@ -136,7 +136,7 @@ namespace Replanetizer.Utils
 
             float distance = zoomReference.Length;
             float zoomAmount = -mouseDeltaY * zoomSpeed;
-            float newDistance = MathHelper.Clamp(distance - zoomAmount, near, far);
+            float newDistance = MathHelper.Clamp(distance * (1.0f - zoomAmount), near, far);
             Vector3 movement = zoomReference.Normalized() * (distance - newDistance);
 
             position += movement;
