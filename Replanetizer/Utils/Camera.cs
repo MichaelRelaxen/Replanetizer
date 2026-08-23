@@ -27,7 +27,7 @@ namespace Replanetizer.Utils
         private Vector3 _rotation = new Vector3(0, 0, -0.75f);
         public Vector3 rotation { get { return _rotation; } set { matrixDirty = true; frustumDirty = true; _rotation = value; } }
 
-        private float _fovy = (float) MathF.PI / 3.0f;
+        private float _fovy = 0.87f;
         public float fovy { get { return _fovy; } set { matrixDirty = true; frustumDirty = true; _fovy = value; } }
         private float _aspect = (float) 16 / 9;
         public float aspect { get { return _aspect; } set { matrixDirty = true; frustumDirty = true; _aspect = value; } }
