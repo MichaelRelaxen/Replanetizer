@@ -16,9 +16,6 @@ namespace Replanetizer.Frames
     {
         private string informationText;
         private string warningText;
-        private string lastReturnMessage = "";
-        private bool attempted = false;
-        private bool success = false;
         private bool useBreakpoints = false;
         private MemoryHookHandle? hookHandle = null;
         private static readonly Vector4 SUCCESS_COLOR = new Vector4(0.0f, 1.0f, 0.0f, 1.0f);
@@ -40,11 +37,6 @@ to the game.
 Once the memory hook is engaged you will no longer be able to save the level in Replanetizer.
 "
             );
-
-            if (frame.HasValidHook())
-            {
-                success = true;
-            }
         }
 
         public override void RenderAsWindow(float deltaTime)
