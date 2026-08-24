@@ -14,6 +14,7 @@ namespace Replanetizer.MemoryHook
         private const uint LOAD_DLL_DEBUG_EVENT = 6;
         private const uint EXCEPTION_SINGLE_STEP = 0x80000004;
         private const uint DBG_CONTINUE = 0x00010002;
+        private const uint DBG_EXCEPTION_NOT_HANDLED = 0x80010001;
         private const uint CONTEXT_DEBUG_REGISTERS = 0x00100010;
         private const uint THREAD_GET_CONTEXT = 0x0008;
         private const uint THREAD_SET_CONTEXT = 0x0010;
@@ -85,7 +86,7 @@ namespace Replanetizer.MemoryHook
 
                 if (debugEvent.ProcessId != PROCESS_ID)
                 {
-                    ContinueDebugEvent(debugEvent.ProcessId, debugEvent.ThreadId, DBG_CONTINUE);
+                    ContinueDebugEvent(debugEvent.ProcessId, debugEvent.ThreadId, GetContinueStatus(debugEvent));
                     continue;
                 }
 
@@ -138,7 +139,7 @@ namespace Replanetizer.MemoryHook
                     return true;
                 }
 
-                if (!ContinueDebugEvent(debugEvent.ProcessId, debugEvent.ThreadId, DBG_CONTINUE))
+                if (!ContinueDebugEvent(debugEvent.ProcessId, debugEvent.ThreadId, GetContinueStatus(debugEvent)))
                 {
                     ErrorMessage = $"Continuing RPCS3 debugger event failed (Win32 error {Marshal.GetLastWin32Error()}).";
                     return false;
@@ -151,6 +152,14 @@ namespace Replanetizer.MemoryHook
             }
 
             return false;
+        }
+
+        private static uint GetContinueStatus(DebugEvent debugEvent)
+        {
+            // We only handle single step exceptions. For all other exceptions we must tell Windows
+            // that we didn't handle the exception so the RPCS3 handlers can take over.
+            // For example, access violations are somehow quite frequent within in-level movies.
+            return debugEvent.Code == EXCEPTION_DEBUG_EVENT ? DBG_EXCEPTION_NOT_HANDLED : DBG_CONTINUE;
         }
 
         private bool EnsureAttached()
