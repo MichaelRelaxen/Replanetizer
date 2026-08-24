@@ -620,6 +620,11 @@ namespace Replanetizer.Frames
                     textureIds.Add(t, new GLTexture(t));
                 }
             }
+
+            foreach (Texture t in level.spaceshipTextures)
+            {
+                textureIds.Add(t, new GLTexture(t));
+            }
         }
 
         private void LoadLevel(Level level)
