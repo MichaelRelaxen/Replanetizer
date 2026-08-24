@@ -46,6 +46,7 @@ namespace Replanetizer.Renderer
 
         private bool selected;
         private float blendDistance = 0.0f;
+        private float mobyAlpha = 1.0f;
 
         private bool renderPrepared = false;
         private bool renderPerform = true;
@@ -449,6 +450,12 @@ namespace Replanetizer.Renderer
 
             UpdateVars();
 
+            mobyAlpha = 1.0f;
+            if (modelObject is Moby moby && moby.memory != null)
+            {
+                mobyAlpha = moby.memory.alpha / 128.0f;
+            }
+
             modelRender = modelObject?.model ?? modelStandalone;
 
             if (ComputeCulling(payload.camera, payload.visibility.enableDistanceCulling, payload.visibility.enableFrustumCulling, payload.visibility.enableVisibleCulling))
@@ -599,6 +606,8 @@ namespace Replanetizer.Renderer
             shaderTable.meshShader.SetUniform4(UniformName.staticColor, ambient);
             shaderTable.meshShader.SetUniform1(UniformName.lightIndex, light);
             shaderTable.meshShader.SetUniform1(UniformName.objectBlendDistance, blendDistance);
+            shaderTable.meshShader.SetUniform1(UniformName.mobyAlpha, mobyAlpha);
+
 
             GLTexture.blueNoiseTexture.Bind(1);
 

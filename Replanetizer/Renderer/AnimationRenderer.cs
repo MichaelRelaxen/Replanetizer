@@ -45,6 +45,7 @@ namespace Replanetizer.Renderer
 
         private bool selected;
         private float blendDistance = 0.0f;
+        private float mobyAlpha = 1.0f;
 
         private List<Texture> textures;
         private Dictionary<Texture, GLTexture> textureIds;
@@ -715,6 +716,12 @@ namespace Replanetizer.Renderer
 
             UpdateVars();
 
+            mobyAlpha = 1.0f;
+            if (mob != null && mob.memory != null)
+            {
+                mobyAlpha = mob.memory.alpha / 128.0f;
+            }
+
             if (emptyModel || gpuData == null) return;
 
             if (ComputeCulling(payload.camera, payload.visibility.enableDistanceCulling, payload.visibility.enableVisibleCulling)) return;
@@ -748,6 +755,7 @@ namespace Replanetizer.Renderer
             }
             shaderTable.animationShader.SetUniform1(UniformName.lightIndex, light);
             shaderTable.animationShader.SetUniform1(UniformName.objectBlendDistance, blendDistance);
+            shaderTable.animationShader.SetUniform1(UniformName.mobyAlpha, mobyAlpha);
 
             GLTexture.blueNoiseTexture.Bind(1);
 

@@ -20,6 +20,7 @@ uniform int useTransparency;
 uniform int useTexture;
 uniform int useMetalShading;
 uniform int ssaaLevelLog;
+uniform float mobyAlpha;
 
 #define ONE_OVER_GOLDEN_RATIO (2654435769u) /* 0.61803398875f */
 
@@ -83,6 +84,7 @@ void main() {
     if ((levelObjectType == 2 || levelObjectType == 4) && objectBlendDistance > 0.0f) {
         alpha *= 1.0f - objectBlendDistance;
     }
+    alpha *= mobyAlpha;
 
     if (useTransparency != 0) {
         alpha *= textureColor.w;
