@@ -49,7 +49,8 @@ namespace Replanetizer.Renderer
         useMetalShading,
         ssaaLevelLog,
         resolveTexture,
-        resolveSsaaLevel
+        resolveSsaaLevel,
+        mobyAlpha
     }
 
 }
